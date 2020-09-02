@@ -83,7 +83,6 @@ class MSDParser(object):
         ps = ParameterState()
         
         for line in self._line_iterator():
-            cols = len(line)
 
             # Handle missing ';' outside of the loop
             if ps.state is not State.SEEK and line.startswith('#'):
@@ -105,7 +104,7 @@ class MSDParser(object):
 
                 elif char == '/':
                     # Skip the rest of the line for comments
-                    if col+1 < cols and line[col+1] == '/':
+                    if col+1 < len(line) and line[col+1] == '/':
                         break
                     # Write the '/' otherwise
                     ps.write(char)
