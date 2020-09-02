@@ -1,9 +1,9 @@
+import unittest
 from io import StringIO
-from unittest import TestCase
 
 from msdparser import MSDParser
 
-class TestMSDParser(TestCase):
+class TestMSDParser(unittest.TestCase):
     
     def test_constructor(self):
         data = "#A:B;"
