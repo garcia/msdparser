@@ -8,7 +8,7 @@ Simple MSD parser for Python. MSD is the underlying file format for many rhythm 
 
 ## Usage
 
-`MSDParser` takes a named `file` or `string` from its constructor. It supports context management and iteration. Parameters are yielded as (key, value) pairs of strings.
+`MSDParser` takes a named `file` or `string` argument. It supports context management and iteration. Parameters are yielded as (key, value) pairs of strings.
 
     from msdparser import MSDParser
 
