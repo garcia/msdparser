@@ -123,5 +123,5 @@ class MSDParser(object):
                         ps.write(char)
         
         # Handle missing ';' at the end of the input
-        if ps.state is State.VALUE:
+        if ps.state is not State.SEEK:
             yield ps.complete()

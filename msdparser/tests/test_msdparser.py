@@ -71,6 +71,15 @@ class TestMSDParser(unittest.TestCase):
         self.assertEqual(('IJKL', ''), next(iterator))
         self.assertEqual(('M', 'NOP'), next(iterator))
         self.assertRaises(StopIteration, next, iterator)
+    
+    def test_missing_value_and_semicolon(self):
+        unit = MSDParser(string='#A\n#B\n#C\n')
+        iterator = iter(unit)
+
+        self.assertEqual(('A\n', ''), next(iterator))
+        self.assertEqual(('B\n', ''), next(iterator))
+        self.assertEqual(('C\n', ''), next(iterator))
+        self.assertRaises(StopIteration, next, iterator)
 
 
 if __name__ == '__main__':
