@@ -6,6 +6,11 @@ from io import StringIO
 __all__ = ['MSDParser']
 
 
+def trailing_newline(line: str):
+    end_of_line = len(line.rstrip('\r\n'))
+    return line[end_of_line:]
+
+
 class State(enum.Enum):
     """
     Encapsulates the high-level state of the MSD parser.
@@ -105,8 +110,10 @@ class MSDParser(object):
                 elif char == '/':
                     # Skip the rest of the line for comments
                     if col+1 < len(line) and line[col+1] == '/':
+                        # Preserve the newline
+                        ps.write(trailing_newline(line))
                         break
-                    # Write the '/' otherwise
+                    # Write the '/' if it's not part of a comment
                     ps.write(char)
 
                 elif char == ';':

@@ -32,9 +32,16 @@ class TestMSDParser(unittest.TestCase):
         self.assertRaises(StopIteration, next, iterator)
     
     def test_comments(self):
-        unit = MSDParser(string='#A// comment //\r\nBC:D// ; //\r\nEF;//#NO:PE;')
+        unit = MSDParser(string='#A// comment //\r\nBC:D// ; \nEF;//#NO:PE;')
         iterator = iter(unit)
         
+        self.assertEqual(('A\nBC', 'D\nEF'), next(iterator))
+        self.assertRaises(StopIteration, next, iterator)
+    
+    def test_comment_with_no_newline_at_eof(self):
+        unit = MSDParser(string='#ABC:DEF// eof')
+        iterator = iter(unit)
+
         self.assertEqual(('ABC', 'DEF'), next(iterator))
         self.assertRaises(StopIteration, next, iterator)
 
@@ -68,7 +75,7 @@ class TestMSDParser(unittest.TestCase):
         
         self.assertEqual(('A', 'B\nCD'), next(iterator))
         self.assertEqual(('E', 'FGH\n'), next(iterator))
-        self.assertEqual(('IJKL', ''), next(iterator))
+        self.assertEqual(('IJKL\n', ''), next(iterator))
         self.assertEqual(('M', 'NOP'), next(iterator))
         self.assertRaises(StopIteration, next, iterator)
     
