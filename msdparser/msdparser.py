@@ -34,7 +34,7 @@ class ParameterState(object):
     Encapsulates the complete state of the MSD parser, including the partial
     key/value pair.
     """
-    __slots__ = ['key', 'value', 'state']
+    __slots__ = ['key', 'value', 'state', 'ignore_stray_text']
 
     def __init__(self, ignore_stray_text):
         self.ignore_stray_text = ignore_stray_text
