@@ -1,6 +1,7 @@
 import codecs
 import enum
-from io import StringIO
+from io import StringIO, TextIOBase
+from typing import Iterator, List, Optional, TextIO, Tuple, Union
 
 
 __all__ = ['MSDParser']
@@ -30,7 +31,7 @@ class ParameterState(object):
     def __init__(self):
         self._reset()
     
-    def _reset(self):
+    def _reset(self) -> None:
         """
         Clear the key & value and set the state to SEEK.
         """
@@ -38,7 +39,7 @@ class ParameterState(object):
         self.value = StringIO()
         self.state = State.SEEK
     
-    def write(self, text):
+    def write(self, text) -> None:
         """
         Write to the key or value, or ignore if seeking.
         """
@@ -47,7 +48,7 @@ class ParameterState(object):
         elif self.state is State.VALUE:
             self.value.write(text)
     
-    def complete(self):
+    def complete(self) -> Tuple[str, str]:
         """
         Return the parameter as a (key, value) tuple and reset to the initial
         key / value / state.
@@ -61,7 +62,9 @@ class MSDParser(object):
     """
     Simple parser for MSD files. All parameters are treated as key-value pairs.
     """
-    def __init__(self, *, file=None, string=None):
+    def __init__(self, *,
+                 file: Optional[Union[TextIO, Iterator[str]]] = None,
+                 string: Optional[str] = None):
         if file is None and string is None:
             raise ValueError("must provide either a file or a string")
         if file is not None and string is not None:
@@ -69,14 +72,14 @@ class MSDParser(object):
         self.file = file
         self.string = string
 
-    def __enter__(self):
+    def __enter__(self) -> 'MSDParser':
         return self
 
-    def __exit__(self, type, value, traceback):
-        if self.file:
+    def __exit__(self, type, value, traceback) -> None:
+        if isinstance(self.file, TextIOBase):
             self.file.close()
     
-    def _line_iterator(self):
+    def _line_iterator(self) -> Union[TextIO, Iterator[str], List[str]]:
         if self.file is not None:
             return self.file
         elif self.string is not None:
