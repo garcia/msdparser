@@ -19,6 +19,10 @@ Simple MSD parser for Python. MSD is the underlying file format for many rhythm 
                     break
                 print(key, '=', repr(value))
 
+## Documentation
+
+https://msdparser.readthedocs.io/en/latest/
+
 ## The MSD format
 
 In general, MSD key-value pairs look like `#KEY:VALUE;` - the `#` starts a parameter, the first `:` separates the key from the value, and the `;` terminates the value. Keys are not expected to be unique. There are no escape sequences.
