@@ -17,7 +17,7 @@ setup(
     url='http://github.com/garcia/msdparser',
     packages=['msdparser'],
     package_data={
-        'msdparser': ['*.pyi', 'py.typed'],
+        'msdparser': ['py.typed'],
     },
     include_package_data=True,
     classifiers=[
