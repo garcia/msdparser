@@ -109,7 +109,7 @@ class MSDParser(object):
         else:
             assert False
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Tuple[str, str]]:
         ps = ParameterState(ignore_stray_text=self.ignore_stray_text)
         
         for line in self._line_iterator():

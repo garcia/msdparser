@@ -16,6 +16,10 @@ setup(
     author_email='python-msdparser@garcia.sh',
     url='http://github.com/garcia/msdparser',
     packages=['msdparser'],
+    package_data={
+        'msdparser': ['*.pyi', 'py.typed'],
+    },
+    include_package_data=True,
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Programming Language :: Python :: 3',
