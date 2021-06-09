@@ -30,7 +30,7 @@ import msdparser
 
 project = 'msdparser'
 release = msdparser.__version__
-copyright = '2020, Ash Garcia'
+copyright = '2021, Ash Garcia'
 author = 'Ash Garcia'
 
 
@@ -41,6 +41,7 @@ author = 'Ash Garcia'
 # ones.
 extensions = [
     'sphinx.ext.autodoc',
+    'sphinx.ext.doctest',
     'sphinx_rtd_theme',
 ]
 

@@ -4,20 +4,21 @@ Simple MSD parser for Python. MSD is the underlying file format for many rhythm 
 
 ## Installing
 
-    pip install msdparser
+`msdparser` is available on PyPI. During the current beta phase, make sure to pass `--pre` to `pip`:
+
+    pip install --pre msdparser
 
 ## Usage
 
-`MSDParser` takes a named `file` or `string` argument. It supports context management and iteration. Parameters are yielded as (key, value) pairs of strings.
+`parse_msd` takes a named `file` or `string` argument and yields parameters as (key, value) pairs of strings:
 
-    from msdparser import MSDParser
+    from msdparser import parse_msd
 
     with open('simfile.sm', 'r', encoding='utf-8') as simfile:
-        with MSDParser(file=simfile) as parser:
-            for (key, value) in parser:
-                if key == 'NOTES':
-                    break
-                print(key, '=', repr(value))
+        for (key, value) in parse_msd(file=simfile):
+            if key == 'NOTES':
+                break
+            print(key, '=', repr(value))
 
 ## Documentation
 
@@ -33,4 +34,4 @@ Keys can contain any text except for `:`, `//`, and a newline followed by a `#` 
 
 Keys and values can be blank. The `:` separator can even be omitted, which has the same result as a blank value.
 
-StepMania recovers from a missing `;` if it finds a `#` marker at the start of a line, so `MSDParser` does too.
+StepMania recovers from a missing `;` if it finds a `#` marker at the start of a line, so this parser does too.

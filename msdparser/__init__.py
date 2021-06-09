@@ -1,4 +1,4 @@
-__version__ = '1.0.0-alpha.3'
+__version__ = '1.0.0-beta.1'
 
 import enum
 from io import StringIO
@@ -24,9 +24,10 @@ class State(enum.Enum):
 
 class MSDParserError(Exception):
     """
-    Raised when a non-whitespace character is found outside parameters.
+    Raised when non-whitespace text is encountered between parameters.
 
-    The byte order mark (BOM, U+FEFF) is special-cased as whitespace.
+    The byte order mark (U+FEFF) is special-cased as whitespace to
+    simplify handling UTF-8 files with a leading BOM.
     """
 
 
@@ -78,15 +79,13 @@ def parse_msd(
     ignore_stray_text: bool = False
 ) -> Iterator[Tuple[str, str]]:
     """
-    Simple parser for MSD files.
+    Parse MSD data into (key, value) pairs.
 
-    :param Optional[Union[TextIO,Iterator[str]]] file:
-        file or file-like object to read (mutually excludes `string`)
-    :param Optional[str] string:
-        string to read (mutually excludes `file`)
-    :param bool ignore_stray_text:
-        whether to suppress :class:`MSDParserError` when stray
-        non-whitespace text is found outside parameters
+    Expects either a `file` (any file-like object) or a `string`
+    containing MSD data, but not both.
+    
+    Raises :class:`MSDParserError` if non-whitespace text is
+    encountered between parameters, unless `ignore_stray_text` is True.
     """
     file_or_string = file or string
     if file_or_string is None:
