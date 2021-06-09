@@ -139,6 +139,9 @@ def parse_msd(
                 # End of the parameter
                 if ps.state is not State.SEEK:
                     yield ps.complete()
+                # Otherwise this is a stray character
+                else:
+                    ps.write(char)
             
             elif char == ':':
                 # Key-value separator

@@ -90,6 +90,12 @@ class TestMSDParser(unittest.TestCase):
         self.assertEqual(('A', 'B'), next(parse))
         self.assertRaises(MSDParserError, next, parse)
     
+    def test_stray_semicolon(self):
+        parse = parse_msd(string='#A:B;;#C:D;')
+
+        self.assertEqual(('A', 'B'), next(parse))
+        self.assertRaises(MSDParserError, next, parse)
+    
     def test_stray_text_with_ignore_stray_text(self):
         parse = parse_msd(string='#A:B;n#C:D;', ignore_stray_text=True)
 
