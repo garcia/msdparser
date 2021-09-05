@@ -1,10 +1,9 @@
-__version__ = '1.0.0-beta.1'
-
 import enum
 from io import StringIO
 from typing import Iterable, Iterator, Optional, TextIO, Tuple, Union
 
 
+__version__ = '1.0.0'
 __all__ = ['parse_msd', 'MSDParserError']
 
 
