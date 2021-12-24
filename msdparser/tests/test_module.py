@@ -20,11 +20,11 @@ class TestMSDParser(unittest.TestCase):
         self.assertRaises(StopIteration, next, parse)
     
     def test_normal_characters(self):
-        parse = parse_msd(string='#A1,./\'"[]\{\}|`~!@#$%^&*()-_=+ \r\n\t:A1,./\'"[]\{\}|`~!@#$%^&*()-_=+ \r\n\t:;')
+        parse = parse_msd(string='#A1,./\'"[]{\\\\}|`~!@#$%^&*()-_=+ \r\n\t:A1,./\'"[]{\\\\}|`~!@#$%^&*()-_=+ \r\n\t:;')
         key, value = next(parse)
 
-        self.assertEqual('A1,./\'"[]\{\}|`~!@#$%^&*()-_=+ \r\n\t', key)
-        self.assertEqual('A1,./\'"[]\{\}|`~!@#$%^&*()-_=+ \r\n\t:', value)
+        self.assertEqual('A1,./\'"[]{\\}|`~!@#$%^&*()-_=+ \r\n\t', key)
+        self.assertEqual('A1,./\'"[]{\\}|`~!@#$%^&*()-_=+ \r\n\t:', value)
         self.assertRaises(StopIteration, next, parse)
     
     def test_comments(self):
@@ -101,6 +101,14 @@ class TestMSDParser(unittest.TestCase):
 
         self.assertEqual(('A', 'B'), next(parse))
         self.assertEqual(('C', 'D'), next(parse))
+        self.assertRaises(StopIteration, next, parse)
+    
+    def test_escaped_characters(self):
+        parse = parse_msd(string=r'#A\:B:C\;D;#E\#F:G\\H;#LF:\\\nLF;')
+
+        self.assertEqual(('A:B', 'C;D'), next(parse))
+        self.assertEqual(('E#F', r'G\H'), next(parse))
+        self.assertEqual(('LF', r'\nLF'), next(parse))
         self.assertRaises(StopIteration, next, parse)
 
 if __name__ == '__main__':

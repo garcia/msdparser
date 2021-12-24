@@ -104,6 +104,7 @@ def parse_msd(
         line_iterator = file_or_string
 
     ps = ParameterState(ignore_stray_text=ignore_stray_text)
+    escaping = False
 
     for line in line_iterator:
 
@@ -114,9 +115,11 @@ def parse_msd(
         for col, char in enumerate(line):
 
             # Read normal characters at the start of the loop for speed
-            if char not in ':;/#':
+            if char not in ':;/#\\' or escaping:
                 ps.write(char)
-            
+                if escaping:
+                    escaping = False
+                        
             elif char == '#':
                 # Start of the next parameter
                 if ps.state is State.SEEK:
@@ -149,6 +152,11 @@ def parse_msd(
                 # Treat ':' normally elsewhere
                 else:
                     ps.write(char)
+            
+            elif char == '\\':
+                # Unconditionally write next character
+                escaping = True
+
 
     # Handle missing ';' at the end of the input
     if ps.state is not State.SEEK:
