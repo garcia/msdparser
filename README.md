@@ -26,7 +26,9 @@ https://msdparser.readthedocs.io/en/latest/
 
 ## The MSD format
 
-In general, MSD key-value pairs look like `#KEY:VALUE;` - the `#` starts a parameter, the first `:` separates the key from the value, and the `;` terminates the value. Keys are not expected to be unique. There are no escape sequences.
+In general, MSD key-value pairs look like `#KEY:VALUE;` - the `#` starts a parameter, the first `:` separates the key from the value, and the `;` terminates the value. Keys are not expected to be unique.
+
+Most applications of MSD (such as the SM and SSC formats) have escape sequences: any character can be treated as regular text by prefixing it with a `\`. Older applications like DWI treat backslashes as regular text.
 
 Comments start with `//` and persist until the end of the line.
 
