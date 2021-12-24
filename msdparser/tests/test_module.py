@@ -104,11 +104,23 @@ class TestMSDParser(unittest.TestCase):
         self.assertRaises(StopIteration, next, parse)
     
     def test_escaped_characters(self):
-        parse = parse_msd(string=r'#A\:B:C\;D;#E\#F:G\\H;#LF:\\\nLF;')
+        parse = parse_msd(string='#A\\:B:C\\;D;#E\\#F:G\\\\H;#LF:\\\nLF;')
 
         self.assertEqual(('A:B', 'C;D'), next(parse))
-        self.assertEqual(('E#F', r'G\H'), next(parse))
-        self.assertEqual(('LF', r'\nLF'), next(parse))
+        self.assertEqual(('E#F', 'G\\H'), next(parse))
+        self.assertEqual(('LF', '\nLF'), next(parse))
+        self.assertRaises(StopIteration, next, parse)
+    
+    def test_no_handle_escapes(self):
+        parse = parse_msd(
+            string='#A\\:B:C\\;D;#E\\#F:G\\\\H;#LF:\\\nLF;',
+            handle_escapes=False,
+            ignore_stray_text=True,
+        )
+
+        self.assertEqual(('A\\', 'B:C\\'), next(parse))
+        self.assertEqual(('E\\#F', 'G\\\\H'), next(parse))
+        self.assertEqual(('LF', '\\\nLF'), next(parse))
         self.assertRaises(StopIteration, next, parse)
 
 if __name__ == '__main__':

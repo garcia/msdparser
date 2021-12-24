@@ -76,6 +76,7 @@ def parse_msd(
     *,
     file: Optional[Union[TextIO, Iterator[str]]] = None,
     string: Optional[str] = None,
+    handle_escapes: bool = True,
     ignore_stray_text: bool = False
 ) -> Iterator[Tuple[str, str]]:
     """
@@ -83,9 +84,14 @@ def parse_msd(
 
     Expects either a `file` (any file-like object) or a `string`
     containing MSD data, but not both.
+
+    Most modern applications of MSD (like the SM and SSC formats) treat
+    backslashes as escape characters, but some older ones (like DWI) don't.
+    Set `handle_escapes` to False to treat backslashes as regular text.
     
     Raises :class:`MSDParserError` if non-whitespace text is
-    encountered between parameters, unless `ignore_stray_text` is True.
+    encountered between parameters, unless `ignore_stray_text` is True, in
+    which case the stray text is simply discarded.
     """
     file_or_string = file or string
     if file_or_string is None:
@@ -154,8 +160,12 @@ def parse_msd(
                     ps.write(char)
             
             elif char == '\\':
-                # Unconditionally write next character
-                escaping = True
+                if handle_escapes:
+                    # Unconditionally write the next character
+                    escaping = True
+                else:
+                    # Treat '\' normally if escapes are disabled
+                    ps.write(char)
 
 
     # Handle missing ';' at the end of the input
