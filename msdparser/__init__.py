@@ -38,25 +38,38 @@ class MSDParameter(NamedTuple):
     key: str
     value: str
 
-    @property
-    def escaped_key(self) -> str:
-        return (self.key
-            .replace('\\', '\\\\')
-            .replace(':', '\\:')
-            .replace(';', '\\;')
-        )
+    def serialize_key(self, *, escapes: bool = True) -> str:
+        if escapes:
+            return (self.key
+                .replace('\\', '\\\\')
+                .replace(':', '\\:')
+                .replace(';', '\\;')
+            )
+        elif ':' in self.key or ';' in self.key:
+            raise ValueError(
+                f'{repr(self.key)}: invalid MSD key without escapes'
+            )
+        else:
+            return self.key
 
-    @property
-    def escaped_value(self) -> str:
-        return (self.value
-            .replace('\\', '\\\\')
-            .replace(';', '\\;')
-        )
+    def serialize_value(self, *, escapes: bool = True) -> str:
+        if escapes:
+            return (self.value
+                .replace('\\', '\\\\')
+                .replace(';', '\\;')
+            )
+        elif ';' in self.key:
+            raise ValueError(
+                f'{repr(self.value)}: invalid MSD value without escapes'
+            )
+        else:
+            return self.key
 
-    def __str__(self, *, escapes: bool = True):
-        key = self.escaped_key if escapes else self.key
-        value = self.escaped_value if escapes else self.value
-        return f'#{key}:{value};'
+    def __str__(self, *, escapes: bool = True) -> str:
+        return (
+            f'#{self.serialize_key(escapes=escapes)}'
+            f':{self.serialize_value(escapes=escapes)};'
+        )
 
 
 class ParameterState(object):
