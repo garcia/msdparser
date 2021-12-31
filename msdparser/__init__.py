@@ -2,7 +2,7 @@ __version__ = '1.0.0-beta.1'
 
 import enum
 from io import StringIO
-from typing import Iterable, Iterator, Optional, TextIO, Tuple, Union
+from typing import Iterable, Iterator, NamedTuple, Optional, TextIO, Tuple, Union
 
 
 __all__ = ['parse_msd', 'MSDParserError']
@@ -29,6 +29,34 @@ class MSDParserError(Exception):
     The byte order mark (U+FEFF) is special-cased as whitespace to
     simplify handling UTF-8 files with a leading BOM.
     """
+
+
+class MSDParameter(NamedTuple):
+    """
+    An MSD key/value pair.
+    """
+    key: str
+    value: str
+
+    @property
+    def escaped_key(self) -> str:
+        return (self.key
+            .replace('\\', '\\\\')
+            .replace(':', '\\:')
+            .replace(';', '\\;')
+        )
+
+    @property
+    def escaped_value(self) -> str:
+        return (self.value
+            .replace('\\', '\\\\')
+            .replace(';', '\\;')
+        )
+
+    def __str__(self, *, escapes: bool = True):
+        key = self.escaped_key if escapes else self.key
+        value = self.escaped_value if escapes else self.value
+        return f'#{key}:{value};'
 
 
 class ParameterState(object):
@@ -62,12 +90,12 @@ class ParameterState(object):
             if text and not text.isspace() and text != '\ufeff':
                 raise MSDParserError(f"stray {repr(text)} encountered")
     
-    def complete(self) -> Tuple[str, str]:
+    def complete(self) -> MSDParameter:
         """
         Return the parameter as a (key, value) tuple and reset to the initial
         key / value / state.
         """
-        parameter = (self.key.getvalue(), self.value.getvalue())
+        parameter = MSDParameter(self.key.getvalue(), self.value.getvalue())
         self._reset()
         return parameter
 
@@ -76,18 +104,18 @@ def parse_msd(
     *,
     file: Optional[Union[TextIO, Iterator[str]]] = None,
     string: Optional[str] = None,
-    handle_escapes: bool = True,
+    escapes: bool = True,
     ignore_stray_text: bool = False
 ) -> Iterator[Tuple[str, str]]:
     """
-    Parse MSD data into (key, value) pairs.
+    Parse MSD data into a stream of :class:`MSDParameter` objects.
 
     Expects either a `file` (any file-like object) or a `string`
     containing MSD data, but not both.
 
     Most modern applications of MSD (like the SM and SSC formats) treat
     backslashes as escape characters, but some older ones (like DWI) don't.
-    Set `handle_escapes` to False to treat backslashes as regular text.
+    Set `escapes` to False to treat backslashes as regular text.
     
     Raises :class:`MSDParserError` if non-whitespace text is
     encountered between parameters, unless `ignore_stray_text` is True, in
@@ -160,7 +188,7 @@ def parse_msd(
                     ps.write(char)
             
             elif char == '\\':
-                if handle_escapes:
+                if escapes:
                     # Unconditionally write the next character
                     escaping = True
                 else:
