@@ -1,8 +1,9 @@
 __version__ = '1.0.0-beta.1'
 
 import enum
+from functools import reduce
 from io import StringIO
-from typing import Iterable, Iterator, NamedTuple, Optional, TextIO, Tuple, Union
+from typing import Iterable, Iterator, NamedTuple, Optional, Sequence, TextIO, Tuple, Union
 
 
 __all__ = ['parse_msd', 'MSDParserError', 'MSDParameter']
@@ -38,32 +39,43 @@ class MSDParameter(NamedTuple):
     key: str
     value: str
 
-    def serialize_key(self, *, escapes: bool = True) -> str:
+    @classmethod
+    def _serialize_component(
+        cls,
+        *,
+        component_name: str,
+        component: str,
+        must_escape: Tuple[str, ...],
+        escapes: bool,
+    ) -> str:
         if escapes:
-            return (self.key
-                .replace('\\', '\\\\')
-                .replace(':', '\\:')
-                .replace(';', '\\;')
+            return reduce(
+                lambda key, esc: key.replace(esc, f'\\{esc}'),
+                ('\\',) + must_escape, # sequence
+                component,   # initial value
             )
-        elif ':' in self.key or ';' in self.key:
+        elif any(esc in component for esc in must_escape):
             raise ValueError(
-                f'{repr(self.key)}: invalid MSD key without escapes'
+                f'{repr(component)}: invalid MSD {component_name} without escapes'
             )
         else:
-            return self.key
+            return component
+
+    def serialize_key(self, *, escapes: bool = True) -> str:
+        return MSDParameter._serialize_component(
+            component_name='key',
+            component=self.key,
+            must_escape=('//', ':', ';'),
+            escapes=escapes,
+        )
 
     def serialize_value(self, *, escapes: bool = True) -> str:
-        if escapes:
-            return (self.value
-                .replace('\\', '\\\\')
-                .replace(';', '\\;')
-            )
-        elif ';' in self.key:
-            raise ValueError(
-                f'{repr(self.value)}: invalid MSD value without escapes'
-            )
-        else:
-            return self.key
+        return MSDParameter._serialize_component(
+            component_name='value',
+            component=self.value,
+            must_escape=('//', ';'),
+            escapes=escapes,
+        )
 
     def __str__(self, *, escapes: bool = True) -> str:
         return (
