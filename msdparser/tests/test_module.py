@@ -111,10 +111,10 @@ class TestMSDParser(unittest.TestCase):
         self.assertEqual(('LF', '\nLF'), next(parse))
         self.assertRaises(StopIteration, next, parse)
     
-    def test_no_handle_escapes(self):
+    def test_no_escapes(self):
         parse = parse_msd(
             string='#A\\:B:C\\;D;#E\\#F:G\\\\H;#LF:\\\nLF;',
-            handle_escapes=False,
+            escapes=False,
             ignore_stray_text=True,
         )
 
