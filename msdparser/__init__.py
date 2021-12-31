@@ -5,7 +5,7 @@ from io import StringIO
 from typing import Iterable, Iterator, NamedTuple, Optional, TextIO, Tuple, Union
 
 
-__all__ = ['parse_msd', 'MSDParserError']
+__all__ = ['parse_msd', 'MSDParserError', 'MSDParameter']
 
 
 def trailing_newline(line: str):
