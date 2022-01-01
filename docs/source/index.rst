@@ -3,10 +3,10 @@ msdparser
 
 Simple MSD parser for Python. MSD is the underlying file format for many rhythm games, most notably both StepMania simfile formats (.sm and .ssc).
 
-Usage
------
+Parsing
+-------
 
-:func:`.parse_msd` takes a named `file` or `string` argument and yields parameters as (key, value) pairs of strings:
+:func:`.parse_msd` takes a named `file` or `string` argument and yields parameters as (key, value) tuples:
 
 .. doctest::
 
@@ -16,6 +16,26 @@ Usage
     ...         if key == 'NOTES':
     ...             break
     ...         print(key, '=', repr(value))
+
+Serializing (v2.0+)
+-------------------
+
+In version 2.0, the aforementioned tuples are :class:`MSDParameter` instances, a :code:`NamedTuple` subclass:
+
+.. doctest::
+
+    >>> from msdparser import MSDParameter
+    >>> param = MSDParameter('TITLE', 'Springtime')
+    >>> str(param)
+    '#TITLE:Springtime;'
+
+This interface is compatible with plain tuple usage, but also allows access through :code:`.key` and :code:`.value` attributes.
+
+When serializing MSD data, prefer to use this method over interpolating the key/value pairs between :code:`#:;` characters yourself. The :code:`str()` implementation inserts escape sequences where required, preventing generation of invalid MSD.
+
+.. note::
+
+    If your use case requires no escaping (for example, when serializing DWI data), use the alternate method `param.serialize(escapes=False)` instead, which will never escape special characters and will raise :code:`ValueError` if the parameter cannot be serialized without escapes (for example, if a value contains a `;` or a `//`).
 
 The MSD format
 --------------
@@ -36,14 +56,14 @@ API
 .. automodule:: msdparser
     :members:
 
-Changelog
----------
 
-2.0.0-beta.1
-~~~~~~~~~~~~
+Further reading
+---------------
 
-* The :code:`MSDParser` class has been converted into the more suitable :func:`.parse_msd` function.
-* Semicolons between parameters are now correctly handled as stray text.
+.. toctree::
+    :maxdepth: 1
+
+    changelog
 
 Indices and tables
 ==================

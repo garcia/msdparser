@@ -15,15 +15,15 @@ Simple MSD parser for Python. MSD is the underlying file format for many rhythm 
 ```python
 >>> from msdparser import parse_msd
 >>> with open('simfile.sm', 'r', encoding='utf-8') as simfile:
->>>     for (key, value) in parse_msd(file=simfile):
->>>         if key == 'NOTES':
->>>             break
->>>         print(key, '=', repr(value))
+...     for (key, value) in parse_msd(file=simfile):
+...         if key == 'NOTES':
+...             break
+...         print(key, '=', repr(value))
 ```
 
-## Serializing (v1.1+)
+## Serializing (v2.0+)
 
-The aforementioned tuples are actually instances of `MSDParameter`, a `NamedTuple` subclass that stringifies to valid MSD:
+In version 2.0, the aforementioned tuples are instances of `MSDParameter`, a `NamedTuple` subclass that stringifies to valid MSD:
 
 ```python
 >>> from msdparser import MSDParameter
@@ -32,7 +32,11 @@ The aforementioned tuples are actually instances of `MSDParameter`, a `NamedTupl
 '#TITLE:Springtime;'
 ```
 
-These strings (along with any desired whitespace or comments) can be written to a file to produce a valid MSD document.
+This interface is compatible with plain tuple usage, but also allows access through :code:`.key` and :code:`.value` attributes.
+
+When serializing MSD data, prefer to use this method over interpolating the key/value pairs between `#:;` characters yourself. The `str()` implementation inserts escape sequences where required, preventing generation of invalid MSD.
+
+> If your use case requires no escaping (for example, when serializing DWI data), use the alternate method `param.serialize(escapes=False)` instead, which will never escape special characters and will raise :code:`ValueError` if the parameter cannot be serialized without escapes (for example, if a value contains a `;` or a `//`).
 
 ## Documentation
 

@@ -34,7 +34,7 @@ class MSDParserError(Exception):
 
 class MSDParameter(NamedTuple):
     """
-    An MSD key/value pair.
+    A key/value pair that stringifies to valid MSD with escapes.
     """
     key: str
     value: str
