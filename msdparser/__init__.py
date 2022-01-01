@@ -77,11 +77,21 @@ class MSDParameter(NamedTuple):
             escapes=escapes,
         )
 
-    def __str__(self, *, escapes: bool = True) -> str:
+    def serialize(self, *, escapes: bool = True) -> str:
+        """
+        Serialize the parameter to MSD.
+
+        Set `escapes` to False to treat backslashes as regular text.
+        However, if the parameter contains any characters that would need
+        to be escaped, this will cause the method to raise `ValueError`.
+        """
         return (
             f'#{self.serialize_key(escapes=escapes)}'
             f':{self.serialize_value(escapes=escapes)};'
         )
+    
+    def __str__(self) -> str:
+        return self.serialize()
 
 
 class ParameterState(object):

@@ -41,9 +41,9 @@ class TestMSDParameter(unittest.TestCase):
             MSDParameter('ABCDEF', 'abc//def'),
         )
 
-        self.assertEqual('#key:value;', param.__str__(escapes=False))
-        self.assertEqual('#key:abc:def;', multi_value_param.__str__(escapes=False))
-        self.assertEqual('#ABC\\DEF:abc\\def;', param_with_literal_backslashes.__str__(escapes=False))
+        self.assertEqual('#key:value;', param.serialize(escapes=False))
+        self.assertEqual('#key:abc:def;', multi_value_param.serialize(escapes=False))
+        self.assertEqual('#ABC\\DEF:abc\\def;', param_with_literal_backslashes.serialize(escapes=False))
 
         for invalid_param in invalid_params:
             self.assertRaises(ValueError, invalid_param.__str__, escapes=False)
