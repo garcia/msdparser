@@ -46,7 +46,7 @@ class TestMSDParameter(unittest.TestCase):
         self.assertEqual('#ABC\\DEF:abc\\def;', param_with_literal_backslashes.serialize(escapes=False))
 
         for invalid_param in invalid_params:
-            self.assertRaises(ValueError, invalid_param.__str__, escapes=False)
+            self.assertRaises(ValueError, invalid_param.serialize, escapes=False)
 
 
 class TestParseMSD(unittest.TestCase):
