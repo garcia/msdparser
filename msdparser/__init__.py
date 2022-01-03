@@ -34,10 +34,15 @@ class MSDParserError(Exception):
 
 class MSDParameter(NamedTuple):
     """
-    A key/value pair that stringifies to valid MSD with escapes.
+    A key/value tuple.
+
+    Stringifying an ``MSDParameter`` converts it back into MSD, escaping
+    any backslashes ``\\`` or special substrings.
     """
     key: str
+    '''The first MSD component. Any special substrings are unescaped.'''
     value: str
+    '''The second MSD component. Any special substrings are unescaped.'''
 
     @classmethod
     def _serialize_component(
@@ -62,6 +67,14 @@ class MSDParameter(NamedTuple):
             return component
 
     def serialize_key(self, *, escapes: bool = True) -> str:
+        """
+        Serialize the key.
+
+        By default, backslashes ``\\`` and special substrings for keys
+        (``:``, ``;`` and ``//``) are escaped. When ``escapes`` is set to
+        False and the key contains a special substring, this method throws
+        ``ValueError`` to avoid producing invalid MSD.
+        """
         return MSDParameter._serialize_component(
             component_name='key',
             component=self.key,
@@ -70,6 +83,14 @@ class MSDParameter(NamedTuple):
         )
 
     def serialize_value(self, *, escapes: bool = True) -> str:
+        """
+        Serialize the value.
+        
+        By default, backslashes ``\\`` and special substrings for values
+        (``;`` and ``//``) are escaped. When ``escapes`` is set to False
+        and the key contains a special substring, this method throws
+        ``ValueError`` to avoid producing invalid MSD.
+        """
         return MSDParameter._serialize_component(
             component_name='value',
             component=self.value,
@@ -79,11 +100,14 @@ class MSDParameter(NamedTuple):
 
     def serialize(self, *, escapes: bool = True) -> str:
         """
-        Serialize the parameter to MSD.
+        Serialize the key/value pair to MSD, including the surrounding
+        ``#:;`` characters.
 
-        Set `escapes` to False to treat backslashes as regular text.
-        However, if the parameter contains any characters that would need
-        to be escaped, this will cause the method to raise `ValueError`.
+        By default, backslashes ``\\`` and special substrings are escaped.
+        When `escapes` is set to False and the key or value contains a
+        special substring, this method throws ``ValueError`` to avoid
+        producing invalid MSD. See :meth:`serialize_key` and
+        :meth:`serialize_value` for more details.
         """
         return (
             f'#{self.serialize_key(escapes=escapes)}'
