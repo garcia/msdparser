@@ -4,9 +4,11 @@ Simple MSD parser for Python. MSD is the underlying file format for many rhythm 
 
 ## Installing
 
-`msdparser` is available on PyPI. During the current beta phase, make sure to pass `--pre` to `pip`:
+`msdparser` is available on PyPI. During the current 2.0 beta phase, make sure to pass `--pre` to `pip`:
 
-    pip install --pre msdparser
+```sh
+pip install --pre msdparser
+```
 
 ## Parsing
 
