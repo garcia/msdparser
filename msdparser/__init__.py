@@ -212,7 +212,7 @@ def parse_msd(
                 ps.write(char)
                 if escaping:
                     escaping = False
-                        
+
             elif char == '#':
                 # Start of the next parameter
                 if ps.state is State.SEEK:
@@ -253,6 +253,9 @@ def parse_msd(
                 else:
                     # Treat '\' normally if escapes are disabled
                     ps.write(char)
+            
+            else:
+                assert False, 'this branch should never be reached'
 
 
     # Handle missing ';' at the end of the input
