@@ -10,9 +10,25 @@ Comments start with ``//`` and persist until the end of the line. They can appea
 Escape sequences
 ~~~~~~~~~~~~~~~~
 
-Modern applications of MSD (such as the SM and SSC formats) have *escape sequences*: any special character (``:``, ``;``, ``\``) or comment initializer (``//``) can be treated as literal text by prefixing it with a ``\``. This behavior is enabled by default.
+Modern applications of MSD have *escape sequences*: any special character (``:``, ``;``, ``\``) or comment initializer (``//``) can be treated as literal text by prefixing it with a ``\``. This behavior is enabled by default.
 
-Older applications like DWI treat backslashes as regular text, and thus do not permit a literal ``;`` in keys or values, nor ``:`` in keys. This behavior can be replicated by passing ``escapes=False`` to :func:`.parse_msd` or :meth:`.MSDParameter.serialize`.
+Older applications treat backslashes as regular text, and thus do not permit a literal ``;`` in keys or values, nor ``:`` in keys. This behavior can be replicated by passing ``escapes=False`` to :func:`.parse_msd` or :meth:`.MSDParameter.serialize`.
+
+Refer to the table below to decide whether escapes should be left enabled or explicitly disabled:
+
+======== ============
+Format   Has escapes?
+-------- ------------
+SM       ✓
+SMA      ✓
+SSC      ✓
+TXT [1]_ ✓
+CRS
+DWI
+KSF
+======== ============
+
+.. [1] Refers to the file ``Data/RandomAttacks.txt`` that comes bundled with StepMania.
 
 Edge cases
 ~~~~~~~~~~

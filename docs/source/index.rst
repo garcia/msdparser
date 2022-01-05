@@ -6,36 +6,64 @@ Simple MSD parser for Python. MSD is the underlying file format for many rhythm 
 Parsing
 -------
 
-:func:`.parse_msd` takes a named `file` or `string` argument and yields parameters as (key, value) tuples:
+:func:`.parse_msd` takes a named `file` or `string` argument and yields parameters that can be unpacked as (key, value) tuples:
 
 .. doctest::
 
     >>> from msdparser import parse_msd
-    >>> with open('simfile.sm', 'r', encoding='utf-8') as simfile:
+    >>> with open('testdata/Springtime.ssc', 'r', encoding='utf-8') as simfile:
     ...     for (key, value) in parse_msd(file=simfile):
-    ...         if key == 'NOTES':
-    ...             break
+    ...         if key == 'NOTEDATA': break     # stop at the first chart
+    ...         if not value: continue          # hide empty values
     ...         print(key, '=', repr(value))
+    ...
+    VERSION = '0.83'
+    TITLE = 'Springtime'
+    ARTIST = 'Kommisar'
+    BANNER = 'springbn.png'
+    BACKGROUND = 'spring.png'
+    MUSIC = 'Kommisar - Springtime.mp3'
+    OFFSET = '-0.090'
+    SAMPLESTART = '105.760'
+    SAMPLELENGTH = '15'
+    SELECTABLE = 'YES'
+    DISPLAYBPM = '182'
+    BPMS = '0=181.685'
+    TIMESIGNATURES = '0=4=4'
+    TICKCOUNTS = '0=2'
+    COMBOS = '0=1'
+    SPEEDS = '0=1=0=0'
+    SCROLLS = '0=1'
+    LABELS = '0=Song Start'
 
 Serializing (v2.0+)
 -------------------
 
-In version 2.0, the aforementioned tuples are :class:`.MSDParameter` instances, a ``NamedTuple`` subclass:
+To serialize key/value pairs back into MSD, construct an :class:`.MSDParameter` for each pair and stringify it:
 
-.. doctest::
+.. code-block:: python
 
     >>> from msdparser import MSDParameter
-    >>> param = MSDParameter('TITLE', 'Springtime')
-    >>> str(param)
-    '#TITLE:Springtime;'
+    >>> pairs = [('TITLE', 'Springtime'), ('ARTIST', 'Kommisar')]
+    >>> for key, value in pairs:
+    ...     print(str(MSDParameter(key=key, value=value)))
+    ...
+    #TITLE:Springtime;
+    #ARTIST:Kommisar;
 
-This interface is compatible with plain tuple usage, but also allows access through :code:`.key` and :code:`.value` attributes.
+:func:`parse_msd` yields :class:`.MSDParameter` instances, so you could read & write MSD in a single loop:
 
-When serializing MSD data, prefer to use this method over interpolating the key/value pairs between ``#:;`` characters yourself. The ``str()`` implementation inserts escape sequences where required, preventing generation of invalid MSD.
+.. code-block:: python
 
-.. note::
+    >>> from msdparser import parse_msd, MSDParameter
+    >>> with open('testdata/Springtime.ssc', 'r') as simfile, open('output.ssc', 'w') as output:
+    ...     for param in parse_msd(file=simfile):
+    ...         if param.key == 'SUBTITLE':
+    ...             param = param._replace(value=param.value + ' (edited)')
+    ...         output.write(str(param))
+    ...         output.write('\n')
 
-    If your use case requires no escaping (for example, when serializing DWI data), use the alternate method ``param.serialize(escapes=False)`` instead, which will never escape special characters and will raise :code:`ValueError` if the parameter cannot be serialized without escapes (for example, if a value contains a ``;`` or a ``//``).
+Prefer to use :class:`.MSDParameter` over interpolating the key/value pairs between ``#:;`` characters yourself. The ``str()`` implementation inserts escape sequences where required, preventing generation of invalid MSD.
 
 API
 ---

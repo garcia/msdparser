@@ -16,11 +16,30 @@ pip install --pre msdparser
 
 ```python
 >>> from msdparser import parse_msd
->>> with open('simfile.sm', 'r', encoding='utf-8') as simfile:
+>>> with open('testdata/Springtime.ssc', 'r', encoding='utf-8') as simfile:
 ...     for (key, value) in parse_msd(file=simfile):
-...         if key == 'NOTES':
-...             break
+...         if key == 'NOTEDATA': break     # stop at the first chart
+...         if not value: continue          # hide empty values
 ...         print(key, '=', repr(value))
+...
+VERSION = '0.83'
+TITLE = 'Springtime'
+ARTIST = 'Kommisar'
+BANNER = 'springbn.png'
+BACKGROUND = 'spring.png'
+MUSIC = 'Kommisar - Springtime.mp3'
+OFFSET = '-0.090'
+SAMPLESTART = '105.760'
+SAMPLELENGTH = '15'
+SELECTABLE = 'YES'
+DISPLAYBPM = '182'
+BPMS = '0=181.685'
+TIMESIGNATURES = '0=4=4'
+TICKCOUNTS = '0=2'
+COMBOS = '0=1'
+SPEEDS = '0=1=0=0'
+SCROLLS = '0=1'
+LABELS = '0=Song Start'
 ```
 
 ## Serializing (v2.0+)
