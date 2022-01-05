@@ -159,6 +159,9 @@ class ParameterState(object):
         return parameter
 
 
+ALL_METACHARACTERS = ':;/#\\'
+
+
 def parse_msd(
     *,
     file: Optional[Union[TextIO, Iterator[str]]] = None,
@@ -204,11 +207,19 @@ def parse_msd(
         # Handle missing ';' outside of the loop
         if ps.state is not State.SEEK and line.startswith('#'):
             yield ps.complete()
+        
+        # Note data constitutes the vast majority of most MSD files, and
+        # metacharacters are very sparse in this context. Checking this
+        # up-front and writing the whole line rather than each character
+        # yields a ~50% speed boost:
+        if not any(c in line for c in ALL_METACHARACTERS):
+            ps.write(line)
+            continue
 
         for col, char in enumerate(line):
 
             # Read normal characters at the start of the loop for speed
-            if char not in ':;/#\\' or escaping:
+            if char not in ALL_METACHARACTERS or escaping:
                 ps.write(char)
                 if escaping:
                     escaping = False
