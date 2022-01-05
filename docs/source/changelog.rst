@@ -22,6 +22,9 @@ Existing :func:`parse_msd` client code that expects :code:`(key, value)` tuples 
 still operate fine, but you can now also access the key/value pair as `key` / 
 `value` properties on the yielded objects.
 
+**Performance:** :func:`parse_msd` has been optimized for most MSD documents,
+particularly those containing large blocks of note data.
+
 1.0.0
 ~~~~~
 
