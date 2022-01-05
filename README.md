@@ -44,20 +44,31 @@ LABELS = '0=Song Start'
 
 ## Serializing (v2.0+)
 
-In version 2.0, the aforementioned tuples are instances of `MSDParameter`, a `NamedTuple` subclass that stringifies to valid MSD:
+To serialize key/value pairs back into MSD, construct an `MSDParameter` for each pair and stringify it:
 
 ```python
 >>> from msdparser import MSDParameter
->>> param = MSDParameter('TITLE', 'Springtime')
->>> str(param)
-'#TITLE:Springtime;'
+>>> pairs = [('TITLE', 'Springtime'), ('ARTIST', 'Kommisar')]
+>>> for key, value in pairs:
+...     print(str(MSDParameter(key=key, value=value)))
+...
+#TITLE:Springtime;
+#ARTIST:Kommisar;
 ```
 
-This interface is compatible with plain tuple usage, but also allows access through :code:`.key` and :code:`.value` attributes.
+`parse_msd` yields `MSDParameter` instances, so you could read & write MSD in a single loop:
 
-When serializing MSD data, prefer to use this method over interpolating the key/value pairs between `#:;` characters yourself. The `str()` implementation inserts escape sequences where required, preventing generation of invalid MSD.
+```python
+>>> from msdparser import parse_msd, MSDParameter
+>>> with open('testdata/Springtime.ssc', 'r') as simfile, open('output.ssc', 'w') as output:
+...     for param in parse_msd(file=simfile):
+...         if param.key == 'SUBTITLE':
+...             param = param._replace(value=param.value + ' (edited)')
+...         output.write(str(param))
+...         output.write('\n')
+```
 
-> If your use case requires no escaping (for example, when serializing DWI data), use the alternate method `param.serialize(escapes=False)` instead, which will never escape special characters and will raise :code:`ValueError` if the parameter cannot be serialized without escapes (for example, if a value contains a `;` or a `//`).
+Prefer to use `MSDParameter` over interpolating the key/value pairs between `#:;` characters yourself. The `str()` implementation inserts escape sequences where required, preventing generation of invalid MSD.
 
 ## Documentation
 
