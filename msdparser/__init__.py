@@ -3,6 +3,7 @@ __version__ = '2.0.0-beta.1'
 import enum
 from functools import reduce
 from io import StringIO
+import re
 from typing import Iterable, Iterator, NamedTuple, Optional, Sequence, TextIO, Tuple, Union
 
 
@@ -160,6 +161,7 @@ class ParameterState(object):
 
 
 ALL_METACHARACTERS = ':;/#\\'
+HAS_METACHARACTERS = re.compile(f'[{re.escape(ALL_METACHARACTERS)}]')
 
 
 def parse_msd(
@@ -212,7 +214,7 @@ def parse_msd(
         # metacharacters are very sparse in this context. Checking this
         # up-front and writing the whole line rather than each character
         # yields a ~50% speed boost:
-        if not any(c in line for c in ALL_METACHARACTERS):
+        if not HAS_METACHARACTERS.search(line):
             ps.write(line)
             continue
 
