@@ -1,9 +1,55 @@
+from typing import Tuple
 import unittest
 from io import StringIO
 
-from msdparser import MSDParserError, parse_msd
+from msdparser import MSDParameter, MSDParserError, parse_msd
 
-class TestMSDParser(unittest.TestCase):
+
+class TestMSDParameter(unittest.TestCase):
+    def test_constructor(self):
+        param = MSDParameter('key', 'value')
+        
+        self.assertEqual('key', param.key)
+        self.assertEqual('value', param.value)
+        self.assertIs(param[0], param.key)
+        self.assertIs(param[1], param.value)
+
+    def test_backwards_compatible_type(self):
+        # Pylance test: replacing (k, v) with MSDParameter(k, v) shouldn't
+        # cause any type errors in client code
+        _: Tuple[str, str] = MSDParameter('key', 'value')
+    
+    def test_str_with_escapes(self):
+        param = MSDParameter('key', 'value')
+        evil_param = MSDParameter('ABC:DEF;GHI//JKL\\MNO', 'abc:def;ghi//jkl\\mno')
+
+        self.assertEqual('#key:value;', str(param))
+        self.assertEqual('#ABC\\:DEF\\;GHI\\//JKL\\\\MNO:abc:def\\;ghi\\//jkl\\\\mno;', str(evil_param))
+    
+    def test_str_without_escapes(self):
+        param = MSDParameter('key', 'value')
+        multi_value_param = MSDParameter('key', 'abc:def')
+        param_with_literal_backslashes = MSDParameter('ABC\\DEF', 'abc\\def')
+        invalid_params = (
+            # `:` separator in key
+            MSDParameter('ABC:DEF', 'abcdef'),
+            # `;` terminator in key or value
+            MSDParameter('ABC;DEF', 'abcdef'),
+            MSDParameter('ABCDEF', 'abc;def'),
+            # `//` comment initializer in key or value
+            MSDParameter('ABC//DEF', 'abcdef'),
+            MSDParameter('ABCDEF', 'abc//def'),
+        )
+
+        self.assertEqual('#key:value;', param.serialize(escapes=False))
+        self.assertEqual('#key:abc:def;', multi_value_param.serialize(escapes=False))
+        self.assertEqual('#ABC\\DEF:abc\\def;', param_with_literal_backslashes.serialize(escapes=False))
+
+        for invalid_param in invalid_params:
+            self.assertRaises(ValueError, invalid_param.serialize, escapes=False)
+
+
+class TestParseMSD(unittest.TestCase):
     
     def test_constructor(self):
         data = "#A:B;"
@@ -20,11 +66,11 @@ class TestMSDParser(unittest.TestCase):
         self.assertRaises(StopIteration, next, parse)
     
     def test_normal_characters(self):
-        parse = parse_msd(string='#A1,./\'"[]\{\}|`~!@#$%^&*()-_=+ \r\n\t:A1,./\'"[]\{\}|`~!@#$%^&*()-_=+ \r\n\t:;')
+        parse = parse_msd(string='#A1,./\'"[]{\\\\}|`~!@#$%^&*()-_=+ \r\n\t:A1,./\'"[]{\\\\}|`~!@#$%^&*()-_=+ \r\n\t:;')
         key, value = next(parse)
 
-        self.assertEqual('A1,./\'"[]\{\}|`~!@#$%^&*()-_=+ \r\n\t', key)
-        self.assertEqual('A1,./\'"[]\{\}|`~!@#$%^&*()-_=+ \r\n\t:', value)
+        self.assertEqual('A1,./\'"[]{\\}|`~!@#$%^&*()-_=+ \r\n\t', key)
+        self.assertEqual('A1,./\'"[]{\\}|`~!@#$%^&*()-_=+ \r\n\t:', value)
         self.assertRaises(StopIteration, next, parse)
     
     def test_comments(self):
@@ -101,6 +147,26 @@ class TestMSDParser(unittest.TestCase):
 
         self.assertEqual(('A', 'B'), next(parse))
         self.assertEqual(('C', 'D'), next(parse))
+        self.assertRaises(StopIteration, next, parse)
+    
+    def test_escapes(self):
+        parse = parse_msd(string='#A\\:B:C\\;D;#E\\#F:G\\\\H;#LF:\\\nLF;')
+
+        self.assertEqual(('A:B', 'C;D'), next(parse))
+        self.assertEqual(('E#F', 'G\\H'), next(parse))
+        self.assertEqual(('LF', '\nLF'), next(parse))
+        self.assertRaises(StopIteration, next, parse)
+    
+    def test_no_escapes(self):
+        parse = parse_msd(
+            string='#A\\:B:C\\;D;#E\\#F:G\\\\H;#LF:\\\nLF;',
+            escapes=False,
+            ignore_stray_text=True,
+        )
+
+        self.assertEqual(('A\\', 'B:C\\'), next(parse))
+        self.assertEqual(('E\\#F', 'G\\\\H'), next(parse))
+        self.assertEqual(('LF', '\\\nLF'), next(parse))
         self.assertRaises(StopIteration, next, parse)
 
 if __name__ == '__main__':

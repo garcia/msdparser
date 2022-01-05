@@ -3,10 +3,10 @@ msdparser
 
 Simple MSD parser for Python. MSD is the underlying file format for many rhythm games, most notably both StepMania simfile formats (.sm and .ssc).
 
-Usage
------
+Parsing
+-------
 
-:func:`.parse_msd` takes a named `file` or `string` argument and yields parameters as (key, value) pairs of strings:
+:func:`.parse_msd` takes a named `file` or `string` argument and yields parameters as (key, value) tuples:
 
 .. doctest::
 
@@ -17,18 +17,25 @@ Usage
     ...             break
     ...         print(key, '=', repr(value))
 
-The MSD format
---------------
+Serializing (v2.0+)
+-------------------
 
-In general, MSD key-value pairs look like :code:`#KEY:VALUE;` - the :code:`#` starts a parameter, the first :code:`:` separates the key from the value, and the :code:`;` terminates the value. Keys are not expected to be unique. There are no escape sequences.
+In version 2.0, the aforementioned tuples are :class:`.MSDParameter` instances, a ``NamedTuple`` subclass:
 
-Comments start with :code:`//` and persist until the end of the line.
+.. doctest::
 
-Keys can contain any text except for :code:`:`, :code:`//`, and a newline followed by a :code:`#` (see below). Values are the same, except :code:`:` is allowed.
+    >>> from msdparser import MSDParameter
+    >>> param = MSDParameter('TITLE', 'Springtime')
+    >>> str(param)
+    '#TITLE:Springtime;'
 
-Keys and values can be blank. The :code:`:` separator can even be omitted, which has the same result as a blank value.
+This interface is compatible with plain tuple usage, but also allows access through :code:`.key` and :code:`.value` attributes.
 
-StepMania recovers from a missing :code:`;` if it finds a :code:`#` marker at the start of a line, so this parser does too.
+When serializing MSD data, prefer to use this method over interpolating the key/value pairs between ``#:;`` characters yourself. The ``str()`` implementation inserts escape sequences where required, preventing generation of invalid MSD.
+
+.. note::
+
+    If your use case requires no escaping (for example, when serializing DWI data), use the alternate method ``param.serialize(escapes=False)`` instead, which will never escape special characters and will raise :code:`ValueError` if the parameter cannot be serialized without escapes (for example, if a value contains a ``;`` or a ``//``).
 
 API
 ---
@@ -36,14 +43,15 @@ API
 .. automodule:: msdparser
     :members:
 
-Changelog
----------
 
-2.0.0-beta.1
-~~~~~~~~~~~~
+Further reading
+---------------
 
-* The :code:`MSDParser` class has been converted into the more suitable :func:`.parse_msd` function.
-* Semicolons between parameters are now correctly handled as stray text.
+.. toctree::
+    :maxdepth: 1
+
+    format
+    changelog
 
 Indices and tables
 ==================
