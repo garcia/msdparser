@@ -213,7 +213,7 @@ def parse_msd(
         # Note data constitutes the vast majority of most MSD files, and
         # metacharacters are very sparse in this context. Checking this
         # up-front and writing the whole line rather than each character
-        # yields a ~50% speed boost:
+        # yields a significant speed boost:
         if not HAS_METACHARACTERS.search(line):
             ps.write(line)
             continue
