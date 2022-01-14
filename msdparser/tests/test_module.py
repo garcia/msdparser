@@ -103,8 +103,10 @@ class TestParseMSD(unittest.TestCase):
     def test_missing_value(self):
         parse = parse_msd(string='#ABC;#DEF;')
 
-        self.assertEqual(MSDParameter(('ABC', '')), next(parse))
-        self.assertEqual(MSDParameter(('DEF', '')), next(parse))
+        param = next(parse)
+        self.assertEqual(MSDParameter(('ABC',)), param)
+        self.assertIsNone(param.value)
+        self.assertEqual(MSDParameter(('DEF',)), next(parse))
         self.assertRaises(StopIteration, next, parse)
 
     def test_missing_semicolon(self):
@@ -112,16 +114,16 @@ class TestParseMSD(unittest.TestCase):
         
         self.assertEqual(MSDParameter(('A', 'B\nCD')), next(parse))
         self.assertEqual(MSDParameter(('E', 'FGH\n')), next(parse))
-        self.assertEqual(MSDParameter(('IJKL\n', '')), next(parse))
+        self.assertEqual(MSDParameter(('IJKL\n',)), next(parse))
         self.assertEqual(MSDParameter(('M', 'NOP')), next(parse))
         self.assertRaises(StopIteration, next, parse)
     
     def test_missing_value_and_semicolon(self):
         parse = parse_msd(string='#A\n#B\n#C\n')
 
-        self.assertEqual(MSDParameter(('A\n', '')), next(parse))
-        self.assertEqual(MSDParameter(('B\n', '')), next(parse))
-        self.assertEqual(MSDParameter(('C\n', '')), next(parse))
+        self.assertEqual(MSDParameter(('A\n',)), next(parse))
+        self.assertEqual(MSDParameter(('B\n',)), next(parse))
+        self.assertEqual(MSDParameter(('C\n',)), next(parse))
         self.assertRaises(StopIteration, next, parse)
     
     def test_unicode(self):

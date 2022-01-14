@@ -19,16 +19,17 @@ Refer to the table below to decide whether escapes should be left enabled or exp
 ======== ============
 Format   Has escapes?
 -------- ------------
-SM       ✓
+SM       ✓ [1]_
 SMA      ✓
 SSC      ✓
-TXT [1]_ ✓
+TXT [2]_ ✓
 CRS
 DWI
 KSF
 ======== ============
 
-.. [1] Refers to the file ``Data/RandomAttacks.txt`` that comes bundled with StepMania.
+.. [1] Only in StepMania versions 4 and 5 (and their forks). Older versions like 3.9 and forks like OpenITG / NotITG do not support escapes.
+.. [2] Refers to the file ``Data/RandomAttacks.txt`` that comes bundled with StepMania.
 
 Edge cases
 ~~~~~~~~~~
@@ -40,4 +41,14 @@ StepMania recovers from a missing ``;`` if it finds a ``#`` marker at the start 
 Multi-value parameters
 ~~~~~~~~~~~~~~~~~~~~~~
 
-Some keys (such as the SM format's ``NOTES``) are expected to have multiple ``:``-separated values. For simplicity, this parser always treats ``:`` in a value literally, leaving any multi-value semantics up to client code to implement. (In other words, the value of ``#KEY:A:B;`` deserializes to ``'A:B'``, rather than ``['A', 'B']`` or similar.)
+MSD parameters can have multiple values separated by colons, like ``#KEY:VALUE1:VALUE2:...;``. While this feature is used infrequently, it's an important detail for understanding how StepMania treats unescaped colons in a value. For example, specifying a song title as ``#TITLE:rE:Voltagers;`` will cause StepMania to display the title as ``rE``, discarding everything after the unescaped colon.
+
+These are the properties where StepMania expects to find multi-value parameters:
+
+========== ====== ======
+Property   SM     SSC
+---------- ------ ------
+DISPLAYBPM ✓      ✓
+ATTACKS    ✓      ✓
+NOTES      ✓
+========== ====== ======
