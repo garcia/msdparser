@@ -35,28 +35,25 @@ class MSDParameter:
     MUST_ESCAPE = ('//', ':', ';')
     
     components: Sequence[str]
-    '''
-    The raw MSD components. Any special substrings are unescaped.
-    
-    This class enforces a minimum of 2 components so that a key & value are
-    always available, even if one or both are blank.
-    '''
-
-    def __post_init__(self):
-        while len(self.components) < 2:
-            self.components = (*self.components, '')
+    '''The raw MSD components. Any special substrings are unescaped.'''
 
     @property
-    def key(self):
+    def key(self) -> Optional[str]:
         '''The first MSD component.'''
-        return self.components[0]
+        try:
+            return self.components[0]
+        except IndexError:
+            return None
 
     @property
-    def value(self):
+    def value(self) -> Optional[str]:
         '''
         The second MSD component, after the key.
         '''
-        return self.components[1]
+        try:
+            return self.components[1]
+        except IndexError:
+            return None
 
     @staticmethod
     def serialize_component(component: str, *, escapes: bool = True) -> str:
