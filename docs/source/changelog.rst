@@ -5,7 +5,7 @@ Changelog
 ~~~~~~~~~~~~
 
 This release significantly changes how multi-value parameters are handled. Unescaped colons
-``:`` after the key are no longer treated as literal text: now a colon _always_ separates
+(``:``) after the key are no longer treated as literal text: now a colon _always_ separates
 components, and the key and value are defined as the first and second components. This
 brings **msdparser** into parity with StepMania when unexpected colons appear after a
 parameter's key.
