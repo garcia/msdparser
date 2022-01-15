@@ -1,8 +1,8 @@
-from typing import Tuple
+from typing import Iterator, Tuple
 import unittest
 from io import StringIO
 
-from msdparser import MSDParameter, MSDParserError, parse_msd
+from msdparser import MSDParameter, MSDParserError, MSDToken, parse_msd, lex_msd
 
 
 class TestMSDParameter(unittest.TestCase):
@@ -171,6 +171,25 @@ class TestParseMSD(unittest.TestCase):
         self.assertEqual(MSDParameter(('E\\#F', 'G\\\\H')), next(parse))
         self.assertEqual(MSDParameter(('LF', '\\\nLF')), next(parse))
         self.assertRaises(StopIteration, next, parse)
+
+
+class TestLexMSD(unittest.TestCase):
+
+    def test_tokens(self):
+        lexer = lex_msd(string='#ABC:DEF\\:GHI;\n#JKL:MNO\nPQR STU')
+
+        self.assertEqual((MSDToken.POUND, '#'), next(lexer))
+        self.assertEqual((MSDToken.TEXT, 'ABC'), next(lexer))
+        self.assertEqual((MSDToken.COLON, ':'), next(lexer))
+        self.assertEqual((MSDToken.TEXT, 'DEF:GHI'), next(lexer))
+        self.assertEqual((MSDToken.SEMICOLON, ';'), next(lexer))
+        self.assertEqual((MSDToken.WHITESPACE, '\n'), next(lexer))
+        self.assertEqual((MSDToken.POUND, '#'), next(lexer))
+        self.assertEqual((MSDToken.TEXT, 'JKL'), next(lexer))
+        self.assertEqual((MSDToken.COLON, ':'), next(lexer))
+        self.assertEqual((MSDToken.TEXT, 'MNO\nPQR STU'), next(lexer))
+        self.assertRaises(StopIteration, next, lexer)
+
 
 if __name__ == '__main__':
     unittest.main()

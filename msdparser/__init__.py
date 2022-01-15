@@ -1,13 +1,15 @@
 __version__ = '2.0.0-beta.2'
 
+from ast import Str
 from dataclasses import dataclass
+import enum
 from functools import reduce
 from io import StringIO
 import re
-from typing import Iterable, Iterator, List, NamedTuple, Optional, Sequence, TextIO, Tuple, Union
+from typing import Iterable, Iterator, List, NamedTuple, Optional, Pattern, Sequence, TextIO, Tuple, Union
 
 
-__all__ = ['parse_msd', 'MSDParserError', 'MSDParameter']
+__all__ = ['MSDParserError', 'MSDParameter', 'MSDToken', 'parse_msd', 'lex_msd']
 
 
 def trailing_newline(line: str):
@@ -112,16 +114,16 @@ class ParameterState:
 
     def __init__(self, ignore_stray_text):
         self.ignore_stray_text = ignore_stray_text
-        self._reset()
+        self.reset()
     
-    def _reset(self) -> None:
+    def reset(self) -> None:
         """
-        Clear the key & value and set the state to SEEK.
+        Clear the components & turn off writing.
         """
         self.components: List[StringIO] = []
         self.writing = False
     
-    def write(self, text) -> None:
+    def write(self, text: str) -> None:
         """
         Write to the key or value, or handle stray text if seeking.
         """
@@ -143,10 +145,54 @@ class ParameterState:
         parameter = MSDParameter(
             tuple(component.getvalue() for component in self.components)
         )
-        self._reset()
+        self.reset()
         return parameter
 
 
+class MSDToken(enum.Enum):
+    '''
+    Enumeration of MSD tokens and their corresponding regex.
+
+    Members with a leading underscore are only used internally, and tokens
+    representing metacharacters are guaranteed to be semantically
+    meaningful (i.e. not literal text) as long as stray text is disabled
+    from :meth:`lex_msd`.
+    '''
+    _ESCAPED_TEXT = r'[^\\\/\r\n:;#]+'
+    _UNESCAPED_TEXT = r'[^\/\r\n:;#]+'
+    TEXT = r'.' # This regex is never actually used
+    COMMENT = r'//[^\r\n]*'
+    POUND = r'#'
+    COLON = r':'
+    SEMICOLON = r';'
+    WHITESPACE = r'\s'
+    _ESCAPE = r'\\.'
+    _SLASH = r'/'
+
+    @classmethod
+    def _literal_members(cls, *, escapes: bool) -> Sequence['MSDToken']:
+        literal_members = (
+            cls._ESCAPED_TEXT,
+            cls._UNESCAPED_TEXT,
+            cls._SLASH,
+            cls.POUND,
+            cls.WHITESPACE,
+        )
+        if escapes:
+            return literal_members
+        else:
+            return (*literal_members, cls._ESCAPE)
+    
+    @classmethod
+    def _exclude_members(cls, *, escapes: bool):
+        if escapes:
+            return (cls.TEXT, cls._UNESCAPED_TEXT)
+        else:
+            return (cls.TEXT, cls._ESCAPED_TEXT, cls._ESCAPE)
+
+
+
+COMPILED_TOKENS: List[Pattern[str]] = [re.compile(token.value) for token in MSDToken]
 ALL_METACHARACTERS = ':;/#\\'
 HAS_METACHARACTERS = re.compile(f'[{re.escape(ALL_METACHARACTERS)}]')
 
@@ -172,6 +218,79 @@ def parse_msd(
     encountered between parameters, unless `ignore_stray_text` is True, in
     which case the stray text is simply discarded.
     """
+    parameter_state = ParameterState(ignore_stray_text)
+
+    for token, value in lex_msd(
+        file=file,
+        string=string,
+        escapes=escapes, 
+        ignore_stray_text=ignore_stray_text,
+    ):
+        # Handle missing ';' outside of the loop
+        if parameter_state.writing and token is MSDToken.POUND:
+            yield parameter_state.complete()
+
+        # Read normal characters at the start of the loop for speed
+        if char not in ALL_METACHARACTERS or escaping:
+            ps.write(char)
+            if escaping:
+                escaping = False
+
+        elif char == '#':
+            # Start of the next parameter
+            if not ps.writing:
+                ps.next_component()
+            # Treat '#' normally elsewhere
+            else:
+                ps.write(char)
+
+        elif char == '/':
+            # Skip the rest of the line for comments
+            if col+1 < len(line) and line[col+1] == '/':
+                # Preserve the newline
+                ps.write(trailing_newline(line))
+                break
+            # Write the '/' if it's not part of a comment
+            ps.write(char)
+
+        elif char == ';':
+            # End of the parameter
+            if ps.writing:
+                yield ps.complete()
+            # Otherwise this is a stray character
+            else:
+                ps.write(char)
+        
+        elif char == ':':
+            # Key/values separator
+            if ps.writing:
+                ps.next_component()
+            # Treat ':' normally elsewhere
+            else:
+                ps.write(char)
+        
+        elif char == '\\':
+            if escapes:
+                # Unconditionally write the next character
+                escaping = True
+            else:
+                # Treat '\' normally if escapes are disabled
+                ps.write(char)
+        
+        else:
+            assert False, 'this branch should never be reached'
+
+    # Handle missing ';' at the end of the input
+    if ps.writing:
+        yield ps.complete()
+
+def lex_msd(
+    *,
+    file: Optional[Union[TextIO, Iterator[str]]] = None,
+    string: Optional[str] = None,
+    escapes: bool = True,
+    ignore_stray_text: bool = False,
+) -> Iterator[Tuple[MSDToken, str]]:
     file_or_string = file or string
     if file_or_string is None:
         raise ValueError('must provide either a file or a string')
@@ -187,76 +306,60 @@ def parse_msd(
         line_iterator = file_or_string.splitlines(True) # keep line endings
     else:
         line_iterator = file_or_string
+    
+    partial_text: Optional[StringIO] = None
+    exclude_members = MSDToken._exclude_members(escapes=escapes)
+    literal_members = MSDToken._literal_members(escapes=escapes)
 
-    ps = ParameterState(ignore_stray_text=ignore_stray_text)
-    escaping = False
-
+    def finish_text(text: Optional[StringIO]):
+        if text:
+            yield (MSDToken.TEXT, text.getvalue())
+    
     for line in line_iterator:
+        remaining_contents = line
+        while remaining_contents:
+            for token, compiled_token in zip(MSDToken, COMPILED_TOKENS):
+                if token in exclude_members:
+                    continue
 
-        # Handle missing ';' outside of the loop
-        if ps.writing and line.startswith('#'):
-            yield ps.complete()
-        
-        # Note data constitutes the vast majority of most MSD files, and
-        # metacharacters are very sparse in this context. Checking this
-        # up-front and writing the whole line rather than each character
-        # yields a significant speed boost:
-        if not HAS_METACHARACTERS.search(line):
-            ps.write(line)
-            continue
+                match = compiled_token.match(remaining_contents)
+                if match:
+                    line_start = remaining_contents is line
+                    remaining_contents = remaining_contents[match.end():]
+                    matched_text = match[0]
+                    
+                    if token is MSDToken.POUND and line_start and partial_text:
+                        yield (MSDToken.TEXT, partial_text.getvalue())
+                        partial_text = None
+                    
+                    if partial_text is not None:
+                        if token in literal_members:
+                            partial_text.write(matched_text)
+                            break
+                        elif token is MSDToken._ESCAPE:
+                            # Write only the character after the backslash
+                            partial_text.write(matched_text[1])
+                            break
+                        else:
+                            yield (MSDToken.TEXT, partial_text.getvalue())
+                            if token is MSDToken.SEMICOLON:
+                                partial_text = None
+                            else:
+                                partial_text = StringIO()
+                    
+                    elif token is MSDToken.POUND:
+                        partial_text = StringIO()
 
-        for col, char in enumerate(line):
-
-            # Read normal characters at the start of the loop for speed
-            if char not in ALL_METACHARACTERS or escaping:
-                ps.write(char)
-                if escaping:
-                    escaping = False
-
-            elif char == '#':
-                # Start of the next parameter
-                if not ps.writing:
-                    ps.next_component()
-                # Treat '#' normally elsewhere
-                else:
-                    ps.write(char)
-
-            elif char == '/':
-                # Skip the rest of the line for comments
-                if col+1 < len(line) and line[col+1] == '/':
-                    # Preserve the newline
-                    ps.write(trailing_newline(line))
+                    elif token not in (MSDToken.WHITESPACE, MSDToken.COMMENT):
+                        if not ignore_stray_text:
+                            raise MSDParserError(f'stray {token} encountered')
+                        
+                    
+                    yield (token, matched_text)
                     break
-                # Write the '/' if it's not part of a comment
-                ps.write(char)
 
-            elif char == ';':
-                # End of the parameter
-                if ps.writing:
-                    yield ps.complete()
-                # Otherwise this is a stray character
-                else:
-                    ps.write(char)
-            
-            elif char == ':':
-                # Key/values separator
-                if ps.writing:
-                    ps.next_component()
-                # Treat ':' normally elsewhere
-                else:
-                    ps.write(char)
-            
-            elif char == '\\':
-                if escapes:
-                    # Unconditionally write the next character
-                    escaping = True
-                else:
-                    # Treat '\' normally if escapes are disabled
-                    ps.write(char)
-            
-            else:
-                assert False, 'this branch should never be reached'
-
-    # Handle missing ';' at the end of the input
-    if ps.writing:
-        yield ps.complete()
+            else: # didn't break
+                assert False, f'no regex matches {repr(remaining_contents)}'
+    
+    if partial_text:
+        yield (MSDToken.TEXT, partial_text.getvalue())
