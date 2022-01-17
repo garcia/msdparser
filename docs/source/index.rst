@@ -1,21 +1,21 @@
 msdparser
 =========
 
-Simple MSD parser for Python. MSD is the underlying file format for many rhythm games, most notably both StepMania simfile formats (.sm and .ssc).
+Simple MSD parser for Python. MSD is the underlying file format for a few rhythm games, most notably both StepMania simfile formats (.sm and .ssc).
 
 Parsing
 -------
 
-:func:`.parse_msd` takes a named `file` or `string` argument and yields parameters that can be unpacked as (key, value) tuples:
+:func:`.parse_msd` takes a named `file` or `string` argument and yields :class:`MSDParameter` instances:
 
 .. doctest::
 
     >>> from msdparser import parse_msd
     >>> with open('testdata/Springtime.ssc', 'r', encoding='utf-8') as simfile:
-    ...     for (key, value) in parse_msd(file=simfile):
-    ...         if key == 'NOTEDATA': break     # stop at the first chart
-    ...         if not value: continue          # hide empty values
-    ...         print(key, '=', repr(value))
+    ...     for param in parse_msd(file=simfile):
+    ...         if param.key == 'NOTEDATA': break   # stop at the first chart
+    ...         if not param.value: continue        # hide empty values
+    ...         print(param.key, '=', repr(param.value))
     ...
     VERSION = '0.83'
     TITLE = 'Springtime'
@@ -36,32 +36,20 @@ Parsing
     SCROLLS = '0=1'
     LABELS = '0=Song Start'
 
-Serializing (v2.0+)
--------------------
+Serializing
+-----------
 
-To serialize key/value pairs back into MSD, construct an :class:`.MSDParameter` for each pair and stringify it:
+:class:`.MSDParameter` instances stringify back to MSD. They can be created from a sequence of strings:
 
 .. code-block:: python
 
     >>> from msdparser import MSDParameter
     >>> pairs = [('TITLE', 'Springtime'), ('ARTIST', 'Kommisar')]
     >>> for key, value in pairs:
-    ...     print(str(MSDParameter(key=key, value=value)))
+    ...     print(str(MSDParameter([key, value])))
     ...
     #TITLE:Springtime;
     #ARTIST:Kommisar;
-
-:func:`parse_msd` yields :class:`.MSDParameter` instances, so you could read & write MSD in a single loop:
-
-.. code-block:: python
-
-    >>> from msdparser import parse_msd, MSDParameter
-    >>> with open('testdata/Springtime.ssc', 'r') as simfile, open('output.ssc', 'w') as output:
-    ...     for param in parse_msd(file=simfile):
-    ...         if param.key == 'SUBTITLE':
-    ...             param = param._replace(value=param.value + ' (edited)')
-    ...         output.write(str(param))
-    ...         output.write('\n')
 
 Prefer to use :class:`.MSDParameter` over interpolating the key/value pairs between ``#:;`` characters yourself. The ``str()`` implementation inserts escape sequences where required, preventing generation of invalid MSD.
 

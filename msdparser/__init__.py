@@ -1,10 +1,10 @@
-__version__ = '2.0.0-beta.1'
+__version__ = '2.0.0-beta.2'
 
-import enum
+from dataclasses import dataclass
 from functools import reduce
 from io import StringIO
 import re
-from typing import Iterable, Iterator, NamedTuple, Optional, Sequence, TextIO, Tuple, Union
+from typing import Iterable, Iterator, List, NamedTuple, Optional, Sequence, TextIO, Tuple, Union
 
 
 __all__ = ['parse_msd', 'MSDParserError', 'MSDParameter']
@@ -13,15 +13,6 @@ __all__ = ['parse_msd', 'MSDParserError', 'MSDParameter']
 def trailing_newline(line: str):
     end_of_line = len(line.rstrip('\r\n'))
     return line[end_of_line:]
-
-
-class State(enum.Enum):
-    """
-    Encapsulates the high-level state of the MSD parser.
-    """
-    SEEK = enum.auto() # Discard until a '#' is reached
-    KEY = enum.auto() # Read the key until a ':' or ';' is reached
-    VALUE = enum.auto() # Read the value until a ';' is reached
 
 
 class MSDParserError(Exception):
@@ -33,98 +24,91 @@ class MSDParserError(Exception):
     """
 
 
-class MSDParameter(NamedTuple):
-    """
-    A key/value tuple.
+@dataclass
+class MSDParameter:
+    '''
+    An MSD parameter, comprised of a key and some values (usually one).
 
     Stringifying an ``MSDParameter`` converts it back into MSD, escaping
     any backslashes ``\\`` or special substrings.
-    """
-    key: str
-    '''The first MSD component. Any special substrings are unescaped.'''
-    value: str
-    '''The second MSD component. Any special substrings are unescaped.'''
+    '''
+    MUST_ESCAPE = ('//', ':', ';')
+    
+    components: Sequence[str]
+    '''The raw MSD components. Any special substrings are unescaped.'''
 
-    @classmethod
-    def _serialize_component(
-        cls,
-        *,
-        component_name: str,
-        component: str,
-        must_escape: Tuple[str, ...],
-        escapes: bool,
-    ) -> str:
+    @property
+    def key(self) -> Optional[str]:
+        '''The first MSD component.'''
+        try:
+            return self.components[0]
+        except IndexError:
+            return None
+
+    @property
+    def value(self) -> Optional[str]:
+        '''
+        The second MSD component, after the key.
+        '''
+        try:
+            return self.components[1]
+        except IndexError:
+            return None
+
+    @staticmethod
+    def serialize_component(component: str, *, escapes: bool = True) -> str:
+        """
+        Serialize an MSD component (key or value).
+
+        By default, backslashes (``\\``) and special substrings (``:``,
+        ``;``, and ``//``) are escaped. When `escapes` is set to False, if
+        the component contains a special substring, this method throws
+        ``ValueError`` to avoid producing invalid MSD.
+        """
         if escapes:
+            # Backslashes must be escaped first to avoid double-escaping
             return reduce(
                 lambda key, esc: key.replace(esc, f'\\{esc}'),
-                ('\\',) + must_escape, # sequence
-                component,   # initial value
+                ('\\',) + MSDParameter.MUST_ESCAPE,
+                component,
             )
-        elif any(esc in component for esc in must_escape):
+        elif any(esc in component for esc in MSDParameter.MUST_ESCAPE):
             raise ValueError(
-                f'{repr(component)}: invalid MSD {component_name} without escapes'
+                f"{repr(component)} can't be serialized without escapes"
             )
         else:
             return component
 
-    def serialize_key(self, *, escapes: bool = True) -> str:
-        """
-        Serialize the key.
-
-        By default, backslashes ``\\`` and special substrings for keys
-        (``:``, ``;`` and ``//``) are escaped. When ``escapes`` is set to
-        False and the key contains a special substring, this method throws
-        ``ValueError`` to avoid producing invalid MSD.
-        """
-        return MSDParameter._serialize_component(
-            component_name='key',
-            component=self.key,
-            must_escape=('//', ':', ';'),
-            escapes=escapes,
-        )
-
-    def serialize_value(self, *, escapes: bool = True) -> str:
-        """
-        Serialize the value.
-        
-        By default, backslashes ``\\`` and special substrings for values
-        (``;`` and ``//``) are escaped. When ``escapes`` is set to False
-        and the key contains a special substring, this method throws
-        ``ValueError`` to avoid producing invalid MSD.
-        """
-        return MSDParameter._serialize_component(
-            component_name='value',
-            component=self.value,
-            must_escape=('//', ';'),
-            escapes=escapes,
-        )
-
-    def serialize(self, *, escapes: bool = True) -> str:
+    def serialize(self, file: TextIO, *, escapes: bool = True):
         """
         Serialize the key/value pair to MSD, including the surrounding
         ``#:;`` characters.
 
-        By default, backslashes ``\\`` and special substrings are escaped.
-        When `escapes` is set to False and the key or value contains a
-        special substring, this method throws ``ValueError`` to avoid
-        producing invalid MSD. See :meth:`serialize_key` and
-        :meth:`serialize_value` for more details.
+        By default, backslashes (``\\``) and special substrings (``//``,
+        ``:``, and ``;``) are escaped. When `escapes` is set to False, if
+        any component contains a special substring, this method throws
+        ``ValueError`` to avoid producing invalid MSD.
         """
-        return (
-            f'#{self.serialize_key(escapes=escapes)}'
-            f':{self.serialize_value(escapes=escapes)};'
-        )
+        last_component = len(self.components) - 1
+        file.write('#')
+        for c, component in enumerate(self.components):
+            file.write(MSDParameter.serialize_component(component, escapes=escapes))
+            if c != last_component:
+                file.write(':')
+        file.write(';')
     
-    def __str__(self) -> str:
-        return self.serialize()
+    def __str__(self, *, escapes: bool = True) -> str:
+        output = StringIO()
+        self.serialize(output, escapes=escapes)
+        return output.getvalue()
 
 
-class ParameterState(object):
+class ParameterState:
     """
     Encapsulates the complete state of the MSD parser, including the partial
     key/value pair.
     """
-    __slots__ = ['key', 'value', 'state', 'ignore_stray_text']
+    __slots__ = ['writing', 'components', 'state', 'ignore_stray_text']
 
     def __init__(self, ignore_stray_text):
         self.ignore_stray_text = ignore_stray_text
@@ -134,28 +118,31 @@ class ParameterState(object):
         """
         Clear the key & value and set the state to SEEK.
         """
-        self.key = StringIO()
-        self.value = StringIO()
-        self.state = State.SEEK
+        self.components: List[StringIO] = []
+        self.writing = False
     
     def write(self, text) -> None:
         """
         Write to the key or value, or handle stray text if seeking.
         """
-        if self.state is State.KEY:
-            self.key.write(text)
-        elif self.state is State.VALUE:
-            self.value.write(text)
+        if self.writing:
+            self.components[-1].write(text)
         elif not self.ignore_stray_text:
             if text and not text.isspace() and text != '\ufeff':
                 raise MSDParserError(f"stray {repr(text)} encountered")
     
+    def next_component(self) -> None:
+        self.writing = True
+        self.components.append(StringIO())
+    
     def complete(self) -> MSDParameter:
         """
-        Return the parameter as a (key, value) tuple and reset to the initial
-        key / value / state.
+        Return the completed :class:`MSDParameter` and reset to the initial
+        state.
         """
-        parameter = MSDParameter(self.key.getvalue(), self.value.getvalue())
+        parameter = MSDParameter(
+            tuple(component.getvalue() for component in self.components)
+        )
         self._reset()
         return parameter
 
@@ -170,7 +157,7 @@ def parse_msd(
     string: Optional[str] = None,
     escapes: bool = True,
     ignore_stray_text: bool = False
-) -> Iterator[Tuple[str, str]]:
+) -> Iterator[MSDParameter]:
     """
     Parse MSD data into a stream of :class:`MSDParameter` objects.
 
@@ -197,7 +184,7 @@ def parse_msd(
     # parameters; otherwise users might try to pass filenames as input strings.
     line_iterator: Iterable[str]
     if isinstance(file_or_string, str):
-        line_iterator = file_or_string.splitlines(True)
+        line_iterator = file_or_string.splitlines(True) # keep line endings
     else:
         line_iterator = file_or_string
 
@@ -207,7 +194,7 @@ def parse_msd(
     for line in line_iterator:
 
         # Handle missing ';' outside of the loop
-        if ps.state is not State.SEEK and line.startswith('#'):
+        if ps.writing and line.startswith('#'):
             yield ps.complete()
         
         # Note data constitutes the vast majority of most MSD files, and
@@ -228,8 +215,8 @@ def parse_msd(
 
             elif char == '#':
                 # Start of the next parameter
-                if ps.state is State.SEEK:
-                    ps.state = State.KEY
+                if not ps.writing:
+                    ps.next_component()
                 # Treat '#' normally elsewhere
                 else:
                     ps.write(char)
@@ -245,16 +232,16 @@ def parse_msd(
 
             elif char == ';':
                 # End of the parameter
-                if ps.state is not State.SEEK:
+                if ps.writing:
                     yield ps.complete()
                 # Otherwise this is a stray character
                 else:
                     ps.write(char)
             
             elif char == ':':
-                # Key-value separator
-                if ps.state is State.KEY:
-                    ps.state = State.VALUE
+                # Key/values separator
+                if ps.writing:
+                    ps.next_component()
                 # Treat ':' normally elsewhere
                 else:
                     ps.write(char)
@@ -270,7 +257,6 @@ def parse_msd(
             else:
                 assert False, 'this branch should never be reached'
 
-
     # Handle missing ';' at the end of the input
-    if ps.state is not State.SEEK:
+    if ps.writing:
         yield ps.complete()
