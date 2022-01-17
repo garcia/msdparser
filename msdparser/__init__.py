@@ -6,7 +6,7 @@ import enum
 from functools import reduce
 from io import StringIO
 import re
-from typing import Iterable, Iterator, List, NamedTuple, Optional, Pattern, Sequence, TextIO, Tuple, Union
+from typing import Generator, Iterable, Iterator, List, NamedTuple, Optional, Pattern, Sequence, TextIO, Tuple, Union
 
 
 __all__ = ['MSDParserError', 'MSDParameter', 'MSDToken', 'parse_msd', 'lex_msd']
@@ -287,10 +287,19 @@ class TextBuffer(str):
     def _reset(self):
         self.buffer = StringIO()
     
-    def write(self, value):
+    def write(self, value: str):
         self.buffer.write(value)
     
+    def ends_with_newline(self) -> bool:
+        value = self.buffer.getvalue()
+        return any(value.endswith(c) for c in '\r\n')
+    
     def complete(self) -> Iterator[Tuple[MSDToken, str]]:
+        '''
+        Yield a Text token for the buffered text & clear the buffer.
+        
+        Returns True if the buffered text ends with a newline.
+        '''
         if self.buffer:
             value = self.buffer.getvalue()
             if value:
@@ -300,7 +309,7 @@ class TextBuffer(str):
 
 def lex_msd(
     *,
-    file: Optional[Union[TextIO, Iterator[str]]] = None,
+    file: Optional[TextIO] = None,
     string: Optional[str] = None,
     escapes: bool = True,
 ) -> Iterator[Tuple[MSDToken, str]]:
@@ -310,35 +319,53 @@ def lex_msd(
     if file is not None and string is not None:
         raise ValueError('must provide either a file or a string, not both')
     
-    # We've proven that `file_or_string` is not None because mypy can't prove
-    # "either `file` or `string` is not None", hence the awkwardness here.
-    # IMO this tradeoff is worth it for the explicitness of separate, named
-    # parameters; otherwise users might try to pass filenames as input strings.
-    line_iterator: Iterable[str]
-    if isinstance(file_or_string, str):
-        line_iterator = file_or_string.splitlines(True) # keep line endings
-    else:
-        line_iterator = file_or_string
+    textio = file if file else StringIO(string)
     
     # This buffer stores literal text so that it can be yielded as
     # a single TEXT token, rather than multiple consecutive tokens.
     text_buffer = TextBuffer()
+
+    # Part of the MSD document that has been read but not consumed
+    msd_buffer = ''
+
+    # Whether we are inside a parameter (between the '#' and its following ';')
     inside_parameter = False
+
+    # Whether we are done reading from the input file or string
+    done_reading = False
+
+    # Try matching each MSD segment against each of these patterns.
+    # This 3-tuple of (LexerPattern, Pattern[str], List[MSDToken]) is an
+    # optimization that performs measurably better than indexing into the
+    # token mapping on each innermost loop.
     pattern_iterator = [
         (pattern, compiled, LexerPatterns.TOKEN_MAPPINGS[pattern])
         for (pattern, compiled) in zip(LexerPattern, COMPILED_PATTERNS)
         if pattern in LexerPatterns.patterns(escapes=escapes)
     ]
     
-    for line in line_iterator:
-        remaining_contents = line
-        while remaining_contents:
+    while not done_reading:
+        chunk = textio.read(4096)
+        if not chunk:
+            done_reading = True
+        msd_buffer += chunk
+
+        # Reading chunks is faster than reading lines, but MSD relies on
+        # lines to determine where comments end & when to recover from a
+        # missing semicolon. This condition enforces that the MSD buffer
+        # always either contains a newline *or* the rest of the input, so
+        # that comments, escapes, etc. don't get split in half.
+        while (
+            # Measurably faster than `any(c in msd_buffer for c in '\r\n')`
+            '\n' in msd_buffer
+            or '\r' in msd_buffer
+            or (done_reading and msd_buffer)
+        ):
             for pattern, compiled_pattern, tokens in pattern_iterator:
 
-                match = compiled_pattern.match(remaining_contents)
+                match = compiled_pattern.match(msd_buffer)
                 if match:
-                    line_start = remaining_contents is line
-                    remaining_contents = remaining_contents[match.end():]
+                    msd_buffer = msd_buffer[match.end():]
                     matched_text = match[0]
                     token = tokens[inside_parameter]
 
@@ -346,7 +373,7 @@ def lex_msd(
                     if (
                         pattern is LexerPattern.POUND
                         and token is MSDToken.TEXT
-                        and line_start
+                        and text_buffer.ends_with_newline()
                     ):
                         token = MSDToken.START_PARAMETER
 
@@ -366,7 +393,7 @@ def lex_msd(
                     yield (token, matched_text)
                     break
 
-            else: # didn't break
-                assert False, f'no regex matches {repr(remaining_contents)}'
+            else: # didn't break from the pattern iterator
+                assert False, f'no regex matches {repr(msd_buffer)}'
     
     yield from text_buffer.complete()
