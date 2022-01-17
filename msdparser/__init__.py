@@ -5,7 +5,7 @@ import enum
 from functools import reduce
 from io import StringIO
 import re
-from typing import Iterator, List, Optional, Pattern, Sequence, TextIO, Tuple, Union
+from typing import Iterator, List, Optional, Pattern, Sequence, TextIO, Tuple
 
 
 __all__ = ['MSDParserError', 'MSDParameter', 'MSDToken', 'parse_msd', 'lex_msd']
@@ -165,13 +165,9 @@ class MSDToken(enum.Enum):
     COMMENT = enum.auto()
 
 
-ALL_METACHARACTERS = ':;/#\\'
-HAS_METACHARACTERS = re.compile(f'[{re.escape(ALL_METACHARACTERS)}]')
-
-
 def parse_msd(
     *,
-    file: Optional[Union[TextIO, Iterator[str]]] = None,
+    file: Optional[TextIO] = None,
     string: Optional[str] = None,
     escapes: bool = True,
     ignore_stray_text: bool = False
