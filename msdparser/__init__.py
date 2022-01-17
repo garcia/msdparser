@@ -240,61 +240,42 @@ class LexerPattern(enum.Enum):
     COMMENT = r'//[^\r\n]*'
     SLASH = r'/'
 
+class LexerPatterns:
+    TOKEN_MAPPINGS = {
+        LexerPattern.ESCAPED_TEXT: [MSDToken.TEXT, MSDToken.TEXT],
+        LexerPattern.UNESCAPED_TEXT: [MSDToken.TEXT, MSDToken.TEXT],
+        LexerPattern.POUND: [MSDToken.START_PARAMETER, MSDToken.TEXT],
+        LexerPattern.COLON: [MSDToken.TEXT, MSDToken.NEXT_COMPONENT],
+        LexerPattern.SEMICOLON: [MSDToken.TEXT, MSDToken.END_PARAMETER],
+        LexerPattern.ESCAPE: [MSDToken.TEXT, MSDToken.ESCAPE],
+        LexerPattern.COMMENT: [MSDToken.COMMENT, MSDToken.COMMENT],
+        LexerPattern.SLASH: [MSDToken.TEXT, MSDToken.TEXT],
+    }
+
+    IGNORE_PER_ESCAPES = {
+        False: (LexerPattern.ESCAPED_TEXT, LexerPattern.ESCAPE),
+        True: (LexerPattern.UNESCAPED_TEXT,),
+    }
+
+    @staticmethod
     def token(
-        self: 'LexerPattern',
+        pattern: LexerPattern,
         *,
         inside_parameter: bool,
-        line_start: bool,
     ):
-        if inside_parameter:
-            if self in {
-                LexerPattern.ESCAPED_TEXT,
-                LexerPattern.UNESCAPED_TEXT,
-                LexerPattern.SLASH,
-            }:
-                return MSDToken.TEXT
-            elif self is LexerPattern.POUND:
-                return MSDToken.START_PARAMETER if line_start else MSDToken.TEXT
-            elif self is LexerPattern.COLON:
-                return MSDToken.NEXT_COMPONENT
-            elif self is LexerPattern.SEMICOLON:
-                return MSDToken.END_PARAMETER
-            elif self is LexerPattern.ESCAPE:
-                return MSDToken.ESCAPE
-        else:
-            if self in {
-                LexerPattern.ESCAPED_TEXT,
-                LexerPattern.UNESCAPED_TEXT,
-                LexerPattern.COLON,
-                LexerPattern.SEMICOLON,
-                LexerPattern.ESCAPE,
-                LexerPattern.SLASH,
-            }:
-                return MSDToken.TEXT
-            elif self is LexerPattern.POUND:
-                return MSDToken.START_PARAMETER
-        
-        if self is LexerPattern.COMMENT:
-            return MSDToken.COMMENT
-        
-        assert False, f'No matching MSDToken for {self}'
+        return LexerPatterns.TOKEN_MAPPINGS[pattern][inside_parameter]
+    
+    @classmethod
+    def patterns(cls, *, escapes: bool):
+        return [
+            t for t in LexerPattern
+            if t not in LexerPatterns.IGNORE_PER_ESCAPES[escapes]
+        ]
 
 
 COMPILED_PATTERNS: List[Pattern[str]] = [
     re.compile(token.value) for token in LexerPattern
 ]
-
-
-class PatternGroups:
-    LITERALS = (
-        LexerPattern.ESCAPED_TEXT,
-        LexerPattern.UNESCAPED_TEXT,
-        LexerPattern.SLASH,
-        LexerPattern.POUND,
-    )
-    
-    EXCLUDE_WITH_ESCAPES = (LexerPattern.UNESCAPED_TEXT,)
-    EXCLUDE_WITHOUT_ESCAPES = (LexerPattern.ESCAPED_TEXT, LexerPattern.ESCAPE)
 
 
 class TextBuffer(str):
@@ -343,25 +324,33 @@ def lex_msd(
     # a single TEXT token, rather than multiple consecutive tokens.
     text_buffer = TextBuffer()
     inside_parameter = False
-    exclude_patterns = PatternGroups.EXCLUDE_WITH_ESCAPES if escapes else PatternGroups.EXCLUDE_WITHOUT_ESCAPES
+    pattern_iterator = [
+        (pattern, compiled, LexerPatterns.TOKEN_MAPPINGS[pattern])
+        for (pattern, compiled) in zip(LexerPattern, COMPILED_PATTERNS)
+        if pattern in LexerPatterns.patterns(escapes=escapes)
+    ]
     
     for line in line_iterator:
         remaining_contents = line
         while remaining_contents:
-            for pattern, compiled_pattern in zip(LexerPattern, COMPILED_PATTERNS):
-                if pattern in exclude_patterns:
-                    continue
+            for pattern, compiled_pattern, tokens in pattern_iterator:
 
                 match = compiled_pattern.match(remaining_contents)
                 if match:
                     line_start = remaining_contents is line
                     remaining_contents = remaining_contents[match.end():]
                     matched_text = match[0]
-                    token = pattern.token(
-                        inside_parameter=inside_parameter,
-                        line_start=line_start,
-                    )
+                    token = tokens[inside_parameter]
 
+                    # Recover from missing ';' at the end of a line
+                    if (
+                        pattern is LexerPattern.POUND
+                        and token is MSDToken.TEXT
+                        and line_start
+                    ):
+                        token = MSDToken.START_PARAMETER
+
+                    # Buffer text until non-text is reached
                     if token is MSDToken.TEXT:
                         text_buffer.write(matched_text)
                         break
@@ -372,7 +361,7 @@ def lex_msd(
                     if token is MSDToken.START_PARAMETER:
                         inside_parameter = True
                     elif token is MSDToken.END_PARAMETER:
-                        inside_parameter = False                   
+                        inside_parameter = False
                     
                     yield (token, matched_text)
                     break
