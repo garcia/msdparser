@@ -158,41 +158,14 @@ class MSDToken(enum.Enum):
     meaningful (i.e. not literal text) as long as stray text is disabled
     from :meth:`lex_msd`.
     '''
-    _ESCAPED_TEXT = r'[^\\\/\r\n:;#]+'
-    _UNESCAPED_TEXT = r'[^\/\r\n:;#]+'
-    TEXT = r'.' # This regex is never actually used
-    COMMENT = r'//[^\r\n]*'
-    POUND = r'#'
-    COLON = r':'
-    SEMICOLON = r';'
-    WHITESPACE = r'\s'
-    _ESCAPE = r'\\.'
-    _SLASH = r'/'
-
-    @classmethod
-    def _literal_members(cls, *, escapes: bool) -> Sequence['MSDToken']:
-        literal_members = (
-            cls._ESCAPED_TEXT,
-            cls._UNESCAPED_TEXT,
-            cls._SLASH,
-            cls.POUND,
-            cls.WHITESPACE,
-        )
-        if escapes:
-            return literal_members
-        else:
-            return (*literal_members, cls._ESCAPE)
-    
-    @classmethod
-    def _exclude_members(cls, *, escapes: bool):
-        if escapes:
-            return (cls.TEXT, cls._UNESCAPED_TEXT)
-        else:
-            return (cls.TEXT, cls._ESCAPED_TEXT, cls._ESCAPE)
+    TEXT = enum.auto()
+    START_PARAMETER = enum.auto()
+    NEXT_COMPONENT = enum.auto()
+    END_PARAMETER = enum.auto()
+    ESCAPE = enum.auto()
+    COMMENT = enum.auto()
 
 
-
-COMPILED_TOKENS: List[Pattern[str]] = [re.compile(token.value) for token in MSDToken]
 ALL_METACHARACTERS = ':;/#\\'
 HAS_METACHARACTERS = re.compile(f'[{re.escape(ALL_METACHARACTERS)}]')
 
@@ -224,72 +197,131 @@ def parse_msd(
         file=file,
         string=string,
         escapes=escapes, 
-        ignore_stray_text=ignore_stray_text,
     ):
-        # Handle missing ';' outside of the loop
-        if parameter_state.writing and token is MSDToken.POUND:
-            yield parameter_state.complete()
-
-        # Read normal characters at the start of the loop for speed
-        if char not in ALL_METACHARACTERS or escaping:
-            ps.write(char)
-            if escaping:
-                escaping = False
-
-        elif char == '#':
-            # Start of the next parameter
-            if not ps.writing:
-                ps.next_component()
-            # Treat '#' normally elsewhere
-            else:
-                ps.write(char)
-
-        elif char == '/':
-            # Skip the rest of the line for comments
-            if col+1 < len(line) and line[col+1] == '/':
-                # Preserve the newline
-                ps.write(trailing_newline(line))
-                break
-            # Write the '/' if it's not part of a comment
-            ps.write(char)
-
-        elif char == ';':
-            # End of the parameter
-            if ps.writing:
-                yield ps.complete()
-            # Otherwise this is a stray character
-            else:
-                ps.write(char)
+        if token is MSDToken.TEXT:
+            parameter_state.write(value)
         
-        elif char == ':':
-            # Key/values separator
-            if ps.writing:
-                ps.next_component()
-            # Treat ':' normally elsewhere
-            else:
-                ps.write(char)
+        elif token is MSDToken.START_PARAMETER:
+            if parameter_state.writing:
+                # The lexer only allows this condition at the start of the line
+                # (otherwise the '#' will be emitted as text).
+                yield parameter_state.complete()
+            parameter_state.next_component()
+
+        elif token is MSDToken.END_PARAMETER:
+            if parameter_state.writing:
+                yield parameter_state.complete()
         
-        elif char == '\\':
-            if escapes:
-                # Unconditionally write the next character
-                escaping = True
-            else:
-                # Treat '\' normally if escapes are disabled
-                ps.write(char)
+        elif token is MSDToken.NEXT_COMPONENT:
+            if parameter_state.writing:
+                parameter_state.next_component()
+        
+        elif token is MSDToken.ESCAPE:
+            parameter_state.write(value[1])
+        
+        elif token is MSDToken.COMMENT:
+            pass
         
         else:
-            assert False, 'this branch should never be reached'
+            assert False, f'unexpected token {token}'
 
     # Handle missing ';' at the end of the input
-    if ps.writing:
-        yield ps.complete()
+    if parameter_state.writing:
+        yield parameter_state.complete()
+
+
+class LexerPattern(enum.Enum):
+    ESCAPED_TEXT = r'[^\\\/:;#]+'
+    UNESCAPED_TEXT = r'[^\/:;#]+'
+    POUND = r'#'
+    COLON = r':'
+    SEMICOLON = r';'
+    ESCAPE = r'(?s)\\.'
+    COMMENT = r'//[^\r\n]*'
+    SLASH = r'/'
+
+    def token(
+        self: 'LexerPattern',
+        *,
+        inside_parameter: bool,
+        line_start: bool,
+    ):
+        if inside_parameter:
+            if self in {
+                LexerPattern.ESCAPED_TEXT,
+                LexerPattern.UNESCAPED_TEXT,
+                LexerPattern.SLASH,
+            }:
+                return MSDToken.TEXT
+            elif self is LexerPattern.POUND:
+                return MSDToken.START_PARAMETER if line_start else MSDToken.TEXT
+            elif self is LexerPattern.COLON:
+                return MSDToken.NEXT_COMPONENT
+            elif self is LexerPattern.SEMICOLON:
+                return MSDToken.END_PARAMETER
+            elif self is LexerPattern.ESCAPE:
+                return MSDToken.ESCAPE
+        else:
+            if self in {
+                LexerPattern.ESCAPED_TEXT,
+                LexerPattern.UNESCAPED_TEXT,
+                LexerPattern.COLON,
+                LexerPattern.SEMICOLON,
+                LexerPattern.ESCAPE,
+                LexerPattern.SLASH,
+            }:
+                return MSDToken.TEXT
+            elif self is LexerPattern.POUND:
+                return MSDToken.START_PARAMETER
+        
+        if self is LexerPattern.COMMENT:
+            return MSDToken.COMMENT
+        
+        assert False, f'No matching MSDToken for {self}'
+
+
+COMPILED_PATTERNS: List[Pattern[str]] = [
+    re.compile(token.value) for token in LexerPattern
+]
+
+
+class PatternGroups:
+    LITERALS = (
+        LexerPattern.ESCAPED_TEXT,
+        LexerPattern.UNESCAPED_TEXT,
+        LexerPattern.SLASH,
+        LexerPattern.POUND,
+    )
+    
+    EXCLUDE_WITH_ESCAPES = (LexerPattern.UNESCAPED_TEXT,)
+    EXCLUDE_WITHOUT_ESCAPES = (LexerPattern.ESCAPED_TEXT, LexerPattern.ESCAPE)
+
+
+class TextBuffer(str):
+    buffer: StringIO
+
+    def __init__(self):
+        self._reset()
+    
+    def _reset(self):
+        self.buffer = StringIO()
+    
+    def write(self, value):
+        self.buffer.write(value)
+    
+    def complete(self) -> Iterator[Tuple[MSDToken, str]]:
+        if self.buffer:
+            value = self.buffer.getvalue()
+            if value:
+                yield (MSDToken.TEXT, value)
+        self._reset()
+
 
 def lex_msd(
     *,
     file: Optional[Union[TextIO, Iterator[str]]] = None,
     string: Optional[str] = None,
     escapes: bool = True,
-    ignore_stray_text: bool = False,
 ) -> Iterator[Tuple[MSDToken, str]]:
     file_or_string = file or string
     if file_or_string is None:
@@ -307,53 +339,40 @@ def lex_msd(
     else:
         line_iterator = file_or_string
     
-    partial_text: Optional[StringIO] = None
-    exclude_members = MSDToken._exclude_members(escapes=escapes)
-    literal_members = MSDToken._literal_members(escapes=escapes)
-
-    def finish_text(text: Optional[StringIO]):
-        if text:
-            yield (MSDToken.TEXT, text.getvalue())
+    # This buffer stores literal text so that it can be yielded as
+    # a single TEXT token, rather than multiple consecutive tokens.
+    text_buffer = TextBuffer()
+    inside_parameter = False
+    exclude_patterns = PatternGroups.EXCLUDE_WITH_ESCAPES if escapes else PatternGroups.EXCLUDE_WITHOUT_ESCAPES
     
     for line in line_iterator:
         remaining_contents = line
         while remaining_contents:
-            for token, compiled_token in zip(MSDToken, COMPILED_TOKENS):
-                if token in exclude_members:
+            for pattern, compiled_pattern in zip(LexerPattern, COMPILED_PATTERNS):
+                if pattern in exclude_patterns:
                     continue
 
-                match = compiled_token.match(remaining_contents)
+                match = compiled_pattern.match(remaining_contents)
                 if match:
                     line_start = remaining_contents is line
                     remaining_contents = remaining_contents[match.end():]
                     matched_text = match[0]
-                    
-                    if token is MSDToken.POUND and line_start and partial_text:
-                        yield (MSDToken.TEXT, partial_text.getvalue())
-                        partial_text = None
-                    
-                    if partial_text is not None:
-                        if token in literal_members:
-                            partial_text.write(matched_text)
-                            break
-                        elif token is MSDToken._ESCAPE:
-                            # Write only the character after the backslash
-                            partial_text.write(matched_text[1])
-                            break
-                        else:
-                            yield (MSDToken.TEXT, partial_text.getvalue())
-                            if token is MSDToken.SEMICOLON:
-                                partial_text = None
-                            else:
-                                partial_text = StringIO()
-                    
-                    elif token is MSDToken.POUND:
-                        partial_text = StringIO()
+                    token = pattern.token(
+                        inside_parameter=inside_parameter,
+                        line_start=line_start,
+                    )
 
-                    elif token not in (MSDToken.WHITESPACE, MSDToken.COMMENT):
-                        if not ignore_stray_text:
-                            raise MSDParserError(f'stray {token} encountered')
-                        
+                    if token is MSDToken.TEXT:
+                        text_buffer.write(matched_text)
+                        break
+                    
+                    # Non-text matched, so yield & discard any buffered text
+                    yield from text_buffer.complete()
+                    
+                    if token is MSDToken.START_PARAMETER:
+                        inside_parameter = True
+                    elif token is MSDToken.END_PARAMETER:
+                        inside_parameter = False                   
                     
                     yield (token, matched_text)
                     break
@@ -361,5 +380,4 @@ def lex_msd(
             else: # didn't break
                 assert False, f'no regex matches {repr(remaining_contents)}'
     
-    if partial_text:
-        yield (MSDToken.TEXT, partial_text.getvalue())
+    yield from text_buffer.complete()
