@@ -1,12 +1,11 @@
 __version__ = '2.0.0-beta.2'
 
-from ast import Str
 from dataclasses import dataclass
 import enum
 from functools import reduce
 from io import StringIO
 import re
-from typing import Generator, Iterable, Iterator, List, NamedTuple, Optional, Pattern, Sequence, TextIO, Tuple, Union
+from typing import Iterator, List, Optional, Pattern, Sequence, TextIO, Tuple, Union
 
 
 __all__ = ['MSDParserError', 'MSDParameter', 'MSDToken', 'parse_msd', 'lex_msd']
