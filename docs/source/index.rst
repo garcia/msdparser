@@ -36,6 +36,8 @@ Parsing
     SCROLLS = '0=1'
     LABELS = '0=Song Start'
 
+For simplicity, this function discards comments and whitespace between parameters. If this extra information is desired, :func:`.lex_msd` offers a lower-level alternative.
+
 Serializing
 -----------
 

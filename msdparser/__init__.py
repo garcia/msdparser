@@ -150,19 +150,20 @@ class ParameterState:
 
 class MSDToken(enum.Enum):
     '''
-    Enumeration of MSD tokens and their corresponding regex.
-
-    Members with a leading underscore are only used internally, and tokens
-    representing metacharacters are guaranteed to be semantically
-    meaningful (i.e. not literal text) as long as stray text is disabled
-    from :meth:`lex_msd`.
+    Enumeration of the lexical tokens produced by :func:`lex_msd`.
     '''
     TEXT = enum.auto()
+    '''Literal text fragment, including any text between parameters.'''
     START_PARAMETER = enum.auto()
+    '''A ``#`` indicating the start of a parameter.'''
     NEXT_COMPONENT = enum.auto()
+    '''A ``:`` inside a parameter separating its components.'''
     END_PARAMETER = enum.auto()
+    '''A ``;`` indicating the end of a parameter.'''
     ESCAPE = enum.auto()
+    '''A ``\\`` followed by the escaped character.'''
     COMMENT = enum.auto()
+    '''A ``//`` followed by the comment text, not including the newline.'''
 
 
 def parse_msd(
@@ -251,17 +252,9 @@ class LexerPatterns:
         False: (LexerPattern.ESCAPED_TEXT, LexerPattern.ESCAPE),
         True: (LexerPattern.UNESCAPED_TEXT,),
     }
-
-    @staticmethod
-    def token(
-        pattern: LexerPattern,
-        *,
-        inside_parameter: bool,
-    ):
-        return LexerPatterns.TOKEN_MAPPINGS[pattern][inside_parameter]
     
-    @classmethod
-    def patterns(cls, *, escapes: bool):
+    @staticmethod
+    def patterns(*, escapes: bool):
         return [
             t for t in LexerPattern
             if t not in LexerPatterns.IGNORE_PER_ESCAPES[escapes]
@@ -308,6 +301,26 @@ def lex_msd(
     string: Optional[str] = None,
     escapes: bool = True,
 ) -> Iterator[Tuple[MSDToken, str]]:
+    """
+    Tokenize MSD data into a stream of (:class:`.MSDToken`, str) tuples.
+
+    Tokens will always follow these constraints:
+
+    * :data:`~MSDToken.START_PARAMETER`, :data:`~MSDToken.NEXT_COMPONENT`,
+      and :data:`~MSDToken.END_PARAMETER` tokens all represent
+      *semantically meaningful* instances of their corresponding
+      metacharacters (``#:;``), never escaped or out-of-context instances.
+    * :data:`~MSDToken.TEXT` will always be as long as possible. (You
+      should never find multiple consecutive text tokens.)
+    * Concatenating all of the tokenized strings together will produce the
+      original input.
+    
+    Keep in mind that MSD components (particularly values) are often
+    separated into multiple :data:`~MSDToken.TEXT` fragments due to
+    :data:`~MSDToken.ESCAPE` and :data:`~.COMMENT` tokens. Refer to the
+    source code for :func:`parse_msd` to understand how to consume the
+    output of this function.
+    """
     file_or_string = file or string
     if file_or_string is None:
         raise ValueError('must provide either a file or a string')
