@@ -50,7 +50,7 @@ class ParameterState(object):
         self.value = StringIO()
         self.state = State.SEEK
     
-    def write(self, text) -> None:
+    def write(self, text, line) -> None:
         """
         Write to the key or value, or handle stray text if seeking.
         """
@@ -60,7 +60,7 @@ class ParameterState(object):
             self.value.write(text)
         elif not self.ignore_stray_text:
             if text and not text.isspace() and text != '\ufeff':
-                raise MSDParserError(f"stray {repr(text)} encountered")
+                raise MSDParserError(f"stray {repr(text)} encountered at line {line + 1}")
     
     def complete(self) -> Tuple[str, str]:
         """
@@ -105,7 +105,7 @@ def parse_msd(
 
     ps = ParameterState(ignore_stray_text=ignore_stray_text)
 
-    for line in line_iterator:
+    for num, line in enumerate(line_iterator):
 
         # Handle missing ';' outside of the loop
         if ps.state is not State.SEEK and line.startswith('#'):
@@ -115,7 +115,7 @@ def parse_msd(
 
             # Read normal characters at the start of the loop for speed
             if char not in ':;/#':
-                ps.write(char)
+                ps.write(char, num)
             
             elif char == '#':
                 # Start of the next parameter
@@ -123,16 +123,16 @@ def parse_msd(
                     ps.state = State.KEY
                 # Treat '#' normally elsewhere
                 else:
-                    ps.write(char)
+                    ps.write(char, num)
 
             elif char == '/':
                 # Skip the rest of the line for comments
                 if col+1 < len(line) and line[col+1] == '/':
                     # Preserve the newline
-                    ps.write(trailing_newline(line))
+                    ps.write(trailing_newline(line), num)
                     break
                 # Write the '/' if it's not part of a comment
-                ps.write(char)
+                ps.write(char, num)
 
             elif char == ';':
                 # End of the parameter
@@ -140,7 +140,7 @@ def parse_msd(
                     yield ps.complete()
                 # Otherwise this is a stray character
                 else:
-                    ps.write(char)
+                    ps.write(char, num)
             
             elif char == ':':
                 # Key-value separator
@@ -148,7 +148,7 @@ def parse_msd(
                     ps.state = State.VALUE
                 # Treat ':' normally elsewhere
                 else:
-                    ps.write(char)
+                    ps.write(char, num)
 
     # Handle missing ';' at the end of the input
     if ps.state is not State.SEEK:
