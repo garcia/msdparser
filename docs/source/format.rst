@@ -5,14 +5,14 @@ MSD is a key-value store, similar in function to INI files. `Here is an example 
 
 In general, MSD key-value pairs look like ``#KEY:VALUE;`` - the ``#`` starts a parameter, the first ``:`` separates the key from the value, and the ``;`` terminates the value. Keys don't have to be unique - for example, each chart in an SM file uses the same ``NOTES`` key.
 
-Comments start with ``//`` and persist until the end of the line. They can appear anywhere, including inside values (or even keys).
+Comments start with ``//`` and persist until the end of the line. They can appear anywhere, including inside values (or even keys, technically).
 
 Escape sequences
 ~~~~~~~~~~~~~~~~
 
 Modern applications of MSD have *escape sequences*: any special character (``:``, ``;``, ``\``) or comment initializer (``//``) can be treated as literal text by prefixing it with a ``\``. This behavior is enabled by default.
 
-Older applications treat backslashes as regular text, and thus do not permit a literal ``;`` in keys or values, nor ``:`` in keys. This behavior can be replicated by passing ``escapes=False`` to :func:`.parse_msd` or :meth:`.MSDParameter.serialize`.
+Older applications treat backslashes as regular text, and thus do not permit a literal ``:`` or ``;`` in keys or values. This behavior can be replicated by passing ``escapes=False`` to :func:`.parse_msd`, :func:`.lex_msd`, or :meth:`.MSDParameter.serialize`.
 
 Refer to the table below to decide whether escapes should be left enabled or explicitly disabled:
 

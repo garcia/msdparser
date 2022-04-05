@@ -6,7 +6,7 @@ Simple MSD parser for Python. MSD is the underlying file format for a few rhythm
 Parsing
 -------
 
-:func:`.parse_msd` takes a named `file` or `string` argument and yields :class:`MSDParameter` instances:
+:func:`.parse_msd` takes a named `file` or `string` argument and yields :class:`.MSDParameter` instances:
 
 .. doctest::
 
