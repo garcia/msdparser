@@ -109,17 +109,20 @@ class ParameterState:
     Encapsulates the complete state of the MSD parser, including the partial
     key/value pair.
     """
-    __slots__ = ['writing', 'components', 'state', 'ignore_stray_text']
+    __slots__ = ['writing', 'components', 'state', 'ignore_stray_text', 'last_key']
 
     def __init__(self, ignore_stray_text):
         self.ignore_stray_text = ignore_stray_text
-        self.reset()
+        self.components: List[StringIO] = []
+        self.writing = False
+        self.last_key: Optional[str] = None
     
     def reset(self) -> None:
         """
         Clear the components & turn off writing.
         """
-        self.components: List[StringIO] = []
+        self.last_key = self.components[0].getvalue() if self.components else ''
+        self.components = []
         self.writing = False
     
     def write(self, text: str) -> None:
@@ -130,7 +133,14 @@ class ParameterState:
             self.components[-1].write(text)
         elif not self.ignore_stray_text:
             if text and not text.isspace() and text != '\ufeff':
-                raise MSDParserError(f"stray {repr(text)} encountered")
+                char = text.lstrip()[0]
+                if self.last_key is None:
+                    at_location = "at start of document"
+                else:
+                    at_location = f"after {repr(self.last_key)} parameter"
+                raise MSDParserError(
+                    f"stray {repr(char)} encountered {at_location}"
+                )
     
     def next_component(self) -> None:
         self.writing = True
@@ -192,7 +202,7 @@ def parse_msd(
     for token, value in lex_msd(
         file=file,
         string=string,
-        escapes=escapes, 
+        escapes=escapes,
     ):
         if token is MSDToken.TEXT:
             parameter_state.write(value)
