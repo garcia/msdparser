@@ -1,13 +1,14 @@
 __version__ = '2.0.0-beta.2'
 
 from dataclasses import dataclass
+import enum
 from functools import reduce
 from io import StringIO
 import re
-from typing import Iterable, Iterator, List, NamedTuple, Optional, Sequence, TextIO, Tuple, Union
+from typing import Iterator, List, Optional, Pattern, Sequence, TextIO, Tuple
 
 
-__all__ = ['parse_msd', 'MSDParserError', 'MSDParameter']
+__all__ = ['MSDParserError', 'MSDParameter', 'MSDToken', 'parse_msd', 'lex_msd']
 
 
 def trailing_newline(line: str):
@@ -108,20 +109,23 @@ class ParameterState:
     Encapsulates the complete state of the MSD parser, including the partial
     key/value pair.
     """
-    __slots__ = ['writing', 'components', 'state', 'ignore_stray_text']
+    __slots__ = ['writing', 'components', 'state', 'ignore_stray_text', 'last_key']
 
     def __init__(self, ignore_stray_text):
         self.ignore_stray_text = ignore_stray_text
-        self._reset()
-    
-    def _reset(self) -> None:
-        """
-        Clear the key & value and set the state to SEEK.
-        """
         self.components: List[StringIO] = []
         self.writing = False
+        self.last_key: Optional[str] = None
     
-    def write(self, text) -> None:
+    def reset(self) -> None:
+        """
+        Clear the components & turn off writing.
+        """
+        self.last_key = self.components[0].getvalue() if self.components else ''
+        self.components = []
+        self.writing = False
+    
+    def write(self, text: str) -> None:
         """
         Write to the key or value, or handle stray text if seeking.
         """
@@ -129,7 +133,14 @@ class ParameterState:
             self.components[-1].write(text)
         elif not self.ignore_stray_text:
             if text and not text.isspace() and text != '\ufeff':
-                raise MSDParserError(f"stray {repr(text)} encountered")
+                char = text.lstrip()[0]
+                if self.last_key is None:
+                    at_location = "at start of document"
+                else:
+                    at_location = f"after {repr(self.last_key)} parameter"
+                raise MSDParserError(
+                    f"stray {repr(char)} encountered {at_location}"
+                )
     
     def next_component(self) -> None:
         self.writing = True
@@ -143,17 +154,31 @@ class ParameterState:
         parameter = MSDParameter(
             tuple(component.getvalue() for component in self.components)
         )
-        self._reset()
+        self.reset()
         return parameter
 
 
-ALL_METACHARACTERS = ':;/#\\'
-HAS_METACHARACTERS = re.compile(f'[{re.escape(ALL_METACHARACTERS)}]')
+class MSDToken(enum.Enum):
+    '''
+    Enumeration of the lexical tokens produced by :func:`lex_msd`.
+    '''
+    TEXT = enum.auto()
+    '''Literal text fragment, including any text between parameters.'''
+    START_PARAMETER = enum.auto()
+    '''A ``#`` indicating the start of a parameter.'''
+    NEXT_COMPONENT = enum.auto()
+    '''A ``:`` inside a parameter separating its components.'''
+    END_PARAMETER = enum.auto()
+    '''A ``;`` indicating the end of a parameter.'''
+    ESCAPE = enum.auto()
+    '''A ``\\`` followed by the escaped character.'''
+    COMMENT = enum.auto()
+    '''A ``//`` followed by the comment text, not including the newline.'''
 
 
 def parse_msd(
     *,
-    file: Optional[Union[TextIO, Iterator[str]]] = None,
+    file: Optional[TextIO] = None,
     string: Optional[str] = None,
     escapes: bool = True,
     ignore_stray_text: bool = False
@@ -172,91 +197,221 @@ def parse_msd(
     encountered between parameters, unless `ignore_stray_text` is True, in
     which case the stray text is simply discarded.
     """
+    parameter_state = ParameterState(ignore_stray_text)
+
+    for token, value in lex_msd(
+        file=file,
+        string=string,
+        escapes=escapes,
+    ):
+        if token is MSDToken.TEXT:
+            parameter_state.write(value)
+        
+        elif token is MSDToken.START_PARAMETER:
+            if parameter_state.writing:
+                # The lexer only allows this condition at the start of the line
+                # (otherwise the '#' will be emitted as text).
+                yield parameter_state.complete()
+            parameter_state.next_component()
+
+        elif token is MSDToken.END_PARAMETER:
+            if parameter_state.writing:
+                yield parameter_state.complete()
+        
+        elif token is MSDToken.NEXT_COMPONENT:
+            if parameter_state.writing:
+                parameter_state.next_component()
+        
+        elif token is MSDToken.ESCAPE:
+            parameter_state.write(value[1])
+        
+        elif token is MSDToken.COMMENT:
+            pass
+        
+        else:
+            assert False, f'unexpected token {token}'
+
+    # Handle missing ';' at the end of the input
+    if parameter_state.writing:
+        yield parameter_state.complete()
+
+
+class LexerPattern(enum.Enum):
+    ESCAPED_TEXT = r'[^\\\/:;#]+'
+    UNESCAPED_TEXT = r'[^\/:;#]+'
+    POUND = r'#'
+    COLON = r':'
+    SEMICOLON = r';'
+    ESCAPE = r'(?s)\\.'
+    COMMENT = r'//[^\r\n]*'
+    SLASH = r'/'
+
+class LexerPatterns:
+    TOKEN_MAPPINGS = {
+        LexerPattern.ESCAPED_TEXT: [MSDToken.TEXT, MSDToken.TEXT],
+        LexerPattern.UNESCAPED_TEXT: [MSDToken.TEXT, MSDToken.TEXT],
+        LexerPattern.POUND: [MSDToken.START_PARAMETER, MSDToken.TEXT],
+        LexerPattern.COLON: [MSDToken.TEXT, MSDToken.NEXT_COMPONENT],
+        LexerPattern.SEMICOLON: [MSDToken.TEXT, MSDToken.END_PARAMETER],
+        LexerPattern.ESCAPE: [MSDToken.TEXT, MSDToken.ESCAPE],
+        LexerPattern.COMMENT: [MSDToken.COMMENT, MSDToken.COMMENT],
+        LexerPattern.SLASH: [MSDToken.TEXT, MSDToken.TEXT],
+    }
+
+    IGNORE_PER_ESCAPES = {
+        False: (LexerPattern.ESCAPED_TEXT, LexerPattern.ESCAPE),
+        True: (LexerPattern.UNESCAPED_TEXT,),
+    }
+    
+    @staticmethod
+    def patterns(*, escapes: bool):
+        return [
+            t for t in LexerPattern
+            if t not in LexerPatterns.IGNORE_PER_ESCAPES[escapes]
+        ]
+
+
+COMPILED_PATTERNS: List[Pattern[str]] = [
+    re.compile(token.value) for token in LexerPattern
+]
+
+
+class TextBuffer(str):
+    buffer: StringIO
+
+    def __init__(self):
+        self._reset()
+    
+    def _reset(self):
+        self.buffer = StringIO()
+    
+    def write(self, value: str):
+        self.buffer.write(value)
+    
+    def ends_with_newline(self) -> bool:
+        value = self.buffer.getvalue()
+        return any(value.endswith(c) for c in '\r\n')
+    
+    def complete(self) -> Iterator[Tuple[MSDToken, str]]:
+        '''
+        Yield a Text token for the buffered text & clear the buffer.
+        
+        Returns True if the buffered text ends with a newline.
+        '''
+        if self.buffer:
+            value = self.buffer.getvalue()
+            if value:
+                yield (MSDToken.TEXT, value)
+        self._reset()
+
+
+def lex_msd(
+    *,
+    file: Optional[TextIO] = None,
+    string: Optional[str] = None,
+    escapes: bool = True,
+) -> Iterator[Tuple[MSDToken, str]]:
+    """
+    Tokenize MSD data into a stream of (:class:`.MSDToken`, str) tuples.
+
+    Tokens will always follow these constraints:
+
+    * :data:`~MSDToken.START_PARAMETER`, :data:`~MSDToken.NEXT_COMPONENT`,
+      and :data:`~MSDToken.END_PARAMETER` tokens all represent
+      *semantically meaningful* instances of their corresponding
+      metacharacters (``#:;``), never escaped or out-of-context instances.
+    * :data:`~MSDToken.TEXT` will always be as long as possible. (You
+      should never find multiple consecutive text tokens.)
+    * Concatenating all of the tokenized strings together will produce the
+      original input.
+    
+    Keep in mind that MSD components (particularly values) are often
+    separated into multiple :data:`~MSDToken.TEXT` fragments due to
+    :data:`~MSDToken.ESCAPE` and :data:`~.COMMENT` tokens. Refer to the
+    source code for :func:`parse_msd` to understand how to consume the
+    output of this function.
+    """
     file_or_string = file or string
     if file_or_string is None:
         raise ValueError('must provide either a file or a string')
     if file is not None and string is not None:
         raise ValueError('must provide either a file or a string, not both')
     
-    # We've proven that `file_or_string` is not None because mypy can't prove
-    # "either `file` or `string` is not None", hence the awkwardness here.
-    # IMO this tradeoff is worth it for the explicitness of separate, named
-    # parameters; otherwise users might try to pass filenames as input strings.
-    line_iterator: Iterable[str]
-    if isinstance(file_or_string, str):
-        line_iterator = file_or_string.splitlines(True) # keep line endings
-    else:
-        line_iterator = file_or_string
+    textio = file if file else StringIO(string)
+    
+    # This buffer stores literal text so that it can be yielded as
+    # a single TEXT token, rather than multiple consecutive tokens.
+    text_buffer = TextBuffer()
 
-    ps = ParameterState(ignore_stray_text=ignore_stray_text)
-    escaping = False
+    # Part of the MSD document that has been read but not consumed
+    msd_buffer = ''
 
-    for line in line_iterator:
+    # Whether we are inside a parameter (between the '#' and its following ';')
+    inside_parameter = False
 
-        # Handle missing ';' outside of the loop
-        if ps.writing and line.startswith('#'):
-            yield ps.complete()
-        
-        # Note data constitutes the vast majority of most MSD files, and
-        # metacharacters are very sparse in this context. Checking this
-        # up-front and writing the whole line rather than each character
-        # yields a significant speed boost:
-        if not HAS_METACHARACTERS.search(line):
-            ps.write(line)
-            continue
+    # Whether we are done reading from the input file or string
+    done_reading = False
 
-        for col, char in enumerate(line):
+    # Try matching each MSD segment against each of these patterns.
+    # This 3-tuple of (LexerPattern, Pattern[str], List[MSDToken]) is an
+    # optimization that performs measurably better than indexing into the
+    # token mapping on each innermost loop.
+    pattern_iterator = [
+        (pattern, compiled, LexerPatterns.TOKEN_MAPPINGS[pattern])
+        for (pattern, compiled) in zip(LexerPattern, COMPILED_PATTERNS)
+        if pattern in LexerPatterns.patterns(escapes=escapes)
+    ]
+    
+    while not done_reading:
+        chunk = textio.read(4096)
+        if not chunk:
+            done_reading = True
+        msd_buffer += chunk
 
-            # Read normal characters at the start of the loop for speed
-            if char not in ALL_METACHARACTERS or escaping:
-                ps.write(char)
-                if escaping:
-                    escaping = False
+        # Reading chunks is faster than reading lines, but MSD relies on
+        # lines to determine where comments end & when to recover from a
+        # missing semicolon. This condition enforces that the MSD buffer
+        # always either contains a newline *or* the rest of the input, so
+        # that comments, escapes, etc. don't get split in half.
+        while (
+            # Measurably faster than `any(c in msd_buffer for c in '\r\n')`
+            '\n' in msd_buffer
+            or '\r' in msd_buffer
+            or (done_reading and msd_buffer)
+        ):
+            for pattern, compiled_pattern, tokens in pattern_iterator:
 
-            elif char == '#':
-                # Start of the next parameter
-                if not ps.writing:
-                    ps.next_component()
-                # Treat '#' normally elsewhere
-                else:
-                    ps.write(char)
+                match = compiled_pattern.match(msd_buffer)
+                if match:
+                    msd_buffer = msd_buffer[match.end():]
+                    matched_text = match[0]
+                    token = tokens[inside_parameter]
 
-            elif char == '/':
-                # Skip the rest of the line for comments
-                if col+1 < len(line) and line[col+1] == '/':
-                    # Preserve the newline
-                    ps.write(trailing_newline(line))
+                    # Recover from missing ';' at the end of a line
+                    if (
+                        pattern is LexerPattern.POUND
+                        and token is MSDToken.TEXT
+                        and text_buffer.ends_with_newline()
+                    ):
+                        token = MSDToken.START_PARAMETER
+
+                    # Buffer text until non-text is reached
+                    if token is MSDToken.TEXT:
+                        text_buffer.write(matched_text)
+                        break
+                    
+                    # Non-text matched, so yield & discard any buffered text
+                    yield from text_buffer.complete()
+                    
+                    if token is MSDToken.START_PARAMETER:
+                        inside_parameter = True
+                    elif token is MSDToken.END_PARAMETER:
+                        inside_parameter = False
+                    
+                    yield (token, matched_text)
                     break
-                # Write the '/' if it's not part of a comment
-                ps.write(char)
 
-            elif char == ';':
-                # End of the parameter
-                if ps.writing:
-                    yield ps.complete()
-                # Otherwise this is a stray character
-                else:
-                    ps.write(char)
-            
-            elif char == ':':
-                # Key/values separator
-                if ps.writing:
-                    ps.next_component()
-                # Treat ':' normally elsewhere
-                else:
-                    ps.write(char)
-            
-            elif char == '\\':
-                if escapes:
-                    # Unconditionally write the next character
-                    escaping = True
-                else:
-                    # Treat '\' normally if escapes are disabled
-                    ps.write(char)
-            
-            else:
-                assert False, 'this branch should never be reached'
-
-    # Handle missing ';' at the end of the input
-    if ps.writing:
-        yield ps.complete()
+            else: # didn't break from the pattern iterator
+                assert False, f'no regex matches {repr(msd_buffer)}'
+    
+    yield from text_buffer.complete()

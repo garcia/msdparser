@@ -65,3 +65,12 @@ html_theme = 'sphinx_rtd_theme'
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
+
+autoapi_type = 'python'
+autoapi_dirs = ['../../msdparser']
+autoapi_ignore = ['*tests*', '*_private*']
+autoapi_options = [
+    'members', 'undoc-members', 'show-inheritance', 'show-module-summary',
+    'imported-members',
+]
+autodoc_member_order = 'bysource'
