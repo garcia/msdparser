@@ -41,7 +41,9 @@ StepMania recovers from a missing ``;`` if it finds a ``#`` marker at the start 
 Multi-value parameters
 ~~~~~~~~~~~~~~~~~~~~~~
 
-MSD parameters can have multiple values separated by colons, like ``#KEY:VALUE1:VALUE2:...;``. While this feature is used infrequently, it's an important detail for understanding how StepMania treats unescaped colons in a value. For example, specifying a song title as ``#TITLE:rE:Voltagers;`` will cause StepMania to display the title as ``rE``, discarding everything after the unescaped colon.
+MSD parameters can have multiple values separated by colons, like ``#KEY:VALUE1:VALUE2:...;``. While this feature is used infrequently, it's an important detail for understanding how StepMania treats unescaped colons in a value. For example, specifying a song title as ``#TITLE:rE:Voltagers;`` will cause StepMania to display the title as ``rE``, discarding everything after the unescaped colon. In other words, StepMania is generally only concerned with the *first value* in a given property.
+
+For simplicity, :attr:`.MSDParameter.value` always corresponds to the first value. If there are multiple values, they can be found in the array :attr:`MSDParameter.components` after the first two elements (the key and the first value).
 
 These are the properties where StepMania expects to find multi-value parameters:
 

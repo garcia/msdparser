@@ -40,7 +40,9 @@ class MSDParameter:
 
     @property
     def key(self) -> Optional[str]:
-        '''The first MSD component.'''
+        '''
+        The first MSD component, immediately following a ``#`` sign.
+        '''
         try:
             return self.components[0]
         except IndexError:
@@ -49,7 +51,7 @@ class MSDParameter:
     @property
     def value(self) -> Optional[str]:
         '''
-        The second MSD component, after the key.
+        The second MSD component, separated from the key by a ``:``.
         '''
         try:
             return self.components[1]
@@ -62,9 +64,9 @@ class MSDParameter:
         Serialize an MSD component (key or value).
 
         By default, backslashes (``\\``) and special substrings (``:``,
-        ``;``, and ``//``) are escaped. When `escapes` is set to False, if
-        the component contains a special substring, this method throws
-        ``ValueError`` to avoid producing invalid MSD.
+        ``;``, and ``//``) are escaped. Setting `escapes` to False will
+        return the component unchanged, unless it contains a special
+        substring, in which case a ``ValueError`` will be raised instead.
         """
         if escapes:
             # Backslashes must be escaped first to avoid double-escaping
@@ -85,10 +87,10 @@ class MSDParameter:
         Serialize the key/value pair to MSD, including the surrounding
         ``#:;`` characters.
 
-        By default, backslashes (``\\``) and special substrings (``//``,
-        ``:``, and ``;``) are escaped. When `escapes` is set to False, if
-        any component contains a special substring, this method throws
-        ``ValueError`` to avoid producing invalid MSD.
+        By default, backslashes (``\\``) and special substrings (``:``,
+        ``;``, and ``//``) are escaped. Setting `escapes` to False will
+        interpolate the components unchanged, unless any contain a special
+        substring, in which case a ``ValueError`` will be raised instead.
         """
         last_component = len(self.components) - 1
         file.write('#')
@@ -163,7 +165,7 @@ class MSDToken(enum.Enum):
     Enumeration of the lexical tokens produced by :func:`lex_msd`.
     '''
     TEXT = enum.auto()
-    '''Literal text fragment, including any text between parameters.'''
+    '''A literal text fragment. This matches anything not matched below.'''
     START_PARAMETER = enum.auto()
     '''A ``#`` indicating the start of a parameter.'''
     NEXT_COMPONENT = enum.auto()
@@ -171,9 +173,12 @@ class MSDToken(enum.Enum):
     END_PARAMETER = enum.auto()
     '''A ``;`` indicating the end of a parameter.'''
     ESCAPE = enum.auto()
-    '''A ``\\`` followed by the escaped character.'''
+    '''A ``\\`` followed by (and including) the escaped character.'''
     COMMENT = enum.auto()
-    '''A ``//`` followed by the comment text, not including the newline.'''
+    '''
+    A ``//`` followed by (and including) the comment text. Doesn't include
+    the trailing newline.
+    '''
 
 
 def parse_msd(
@@ -313,6 +318,13 @@ def lex_msd(
 ) -> Iterator[Tuple[MSDToken, str]]:
     """
     Tokenize MSD data into a stream of (:class:`.MSDToken`, str) tuples.
+
+    Expects either a `file` (any file-like object) or a `string`
+    containing MSD data, but not both.
+
+    Most modern applications of MSD (like the SM and SSC formats) treat
+    backslashes as escape characters, but some older ones (like DWI) don't.
+    Set `escapes` to False to treat backslashes as regular text.
 
     Tokens will always follow these constraints:
 
