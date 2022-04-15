@@ -42,6 +42,9 @@ class MSDParameter:
     def key(self) -> str:
         """
         The first MSD component, the part immediately after the ``#`` sign.
+
+        Raises ``IndexError`` if :attr:`~.components` is an empty sequence
+        (:func:`parse_msd` will never produce such a parameter).
         """
         return self.components[0]
 

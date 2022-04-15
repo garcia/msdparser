@@ -1,6 +1,12 @@
 Changelog
 ---------
 
+2.0.0-beta.4
+~~~~~~~~~~~~
+
+* **Enhancement:** :attr:`.MSDParameter.key`'s type has been narrowed from ``Optional[str]``
+  to ``str``.
+
 2.0.0-beta.3
 ~~~~~~~~~~~~
 
@@ -21,7 +27,7 @@ brings **msdparser** into parity with StepMania when unexpected colons appear af
 parameter's key.
 
 **API change:** :class:`.MSDParameter` is no longer a subclass of ``NamedTuple``. Instead,
-it's a dataclass with :meth:`~.key` and :meth:`~.value` properties that index into a sequence
+it's a dataclass with :attr:`~.key` and :attr:`~.value` properties that index into a sequence
 of :attr:`~.components`.
 
 2.0.0-beta.1
