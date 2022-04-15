@@ -39,19 +39,18 @@ class MSDParameter:
     """The raw MSD components. Any special substrings are unescaped."""
 
     @property
-    def key(self) -> Optional[str]:
+    def key(self) -> str:
         """
-        The first MSD component, immediately following a ``#`` sign.
+        The first MSD component, the part immediately after the ``#`` sign.
         """
-        try:
-            return self.components[0]
-        except IndexError:
-            return None
+        return self.components[0]
 
     @property
     def value(self) -> Optional[str]:
         """
         The second MSD component, separated from the key by a ``:``.
+
+        Returns None if the parameter ends after the key with no ``:``.
         """
         try:
             return self.components[1]
