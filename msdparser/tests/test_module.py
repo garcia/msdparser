@@ -14,6 +14,12 @@ class TestMSDParameter(unittest.TestCase):
         self.assertIs(param.components[0], param.key)
         self.assertIs(param.components[1], param.value)
     
+    def test_key_without_value(self):
+        param = MSDParameter(('key',))
+
+        self.assertEqual('key', param.key)
+        self.assertIsNone(param.value)
+    
     def test_str_with_escapes(self):
         param = MSDParameter(('key', 'value'))
         evil_param = MSDParameter(('ABC:DEF;GHI//JKL\\MNO', 'abc:def;ghi//jkl\\mno'))
