@@ -27,22 +27,22 @@ class MSDParserError(Exception):
 
 @dataclass
 class MSDParameter:
-    '''
+    """
     An MSD parameter, comprised of a key and some values (usually one).
 
     Stringifying an ``MSDParameter`` converts it back into MSD, escaping
     any backslashes ``\\`` or special substrings.
-    '''
+    """
     MUST_ESCAPE = ('//', ':', ';')
     
     components: Sequence[str]
-    '''The raw MSD components. Any special substrings are unescaped.'''
+    """The raw MSD components. Any special substrings are unescaped."""
 
     @property
     def key(self) -> Optional[str]:
-        '''
+        """
         The first MSD component, immediately following a ``#`` sign.
-        '''
+        """
         try:
             return self.components[0]
         except IndexError:
@@ -50,9 +50,9 @@ class MSDParameter:
 
     @property
     def value(self) -> Optional[str]:
-        '''
+        """
         The second MSD component, separated from the key by a ``:``.
-        '''
+        """
         try:
             return self.components[1]
         except IndexError:
@@ -161,24 +161,24 @@ class ParameterState:
 
 
 class MSDToken(enum.Enum):
-    '''
+    """
     Enumeration of the lexical tokens produced by :func:`lex_msd`.
-    '''
+    """
     TEXT = enum.auto()
-    '''A literal text fragment. This matches anything not matched below.'''
+    """A literal text fragment. This matches anything not matched below."""
     START_PARAMETER = enum.auto()
-    '''A ``#`` indicating the start of a parameter.'''
+    """A ``#`` indicating the start of a parameter."""
     NEXT_COMPONENT = enum.auto()
-    '''A ``:`` inside a parameter separating its components.'''
+    """A ``:`` inside a parameter separating its components."""
     END_PARAMETER = enum.auto()
-    '''A ``;`` indicating the end of a parameter.'''
+    """A ``;`` indicating the end of a parameter."""
     ESCAPE = enum.auto()
-    '''A ``\\`` followed by (and including) the escaped character.'''
+    """A ``\\`` followed by (and including) the escaped character."""
     COMMENT = enum.auto()
-    '''
+    """
     A ``//`` followed by (and including) the comment text. Doesn't include
     the trailing newline.
-    '''
+    """
 
 
 def parse_msd(
@@ -298,11 +298,11 @@ class TextBuffer(str):
         return any(value.endswith(c) for c in '\r\n')
     
     def complete(self) -> Iterator[Tuple[MSDToken, str]]:
-        '''
+        """
         Yield a Text token for the buffered text & clear the buffer.
         
         Returns True if the buffered text ends with a newline.
-        '''
+        """
         if self.buffer:
             value = self.buffer.getvalue()
             if value:
