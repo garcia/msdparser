@@ -18,7 +18,9 @@ class TestLexMSD(unittest.TestCase):
         self.assertEqual((MSDToken.START_PARAMETER, "#"), next(lex))
         self.assertEqual((MSDToken.TEXT, "JKL"), next(lex))
         self.assertEqual((MSDToken.NEXT_COMPONENT, ":"), next(lex))
-        self.assertEqual((MSDToken.TEXT, "MNO\nPQR# STU"), next(lex))
+        self.assertEqual((MSDToken.TEXT, "MNO\nPQR"), next(lex))
+        self.assertEqual((MSDToken.TEXT, "#"), next(lex))
+        self.assertEqual((MSDToken.TEXT, " STU"), next(lex))
         self.assertRaises(StopIteration, next, lex)
 
     def test_tokens_without_escapes(self):
@@ -35,19 +37,23 @@ class TestLexMSD(unittest.TestCase):
         self.assertEqual((MSDToken.START_PARAMETER, "#"), next(lex))
         self.assertEqual((MSDToken.TEXT, "JKL"), next(lex))
         self.assertEqual((MSDToken.NEXT_COMPONENT, ":"), next(lex))
-        self.assertEqual((MSDToken.TEXT, "MNO\nPQR# STU"), next(lex))
+        self.assertEqual((MSDToken.TEXT, "MNO\nPQR"), next(lex))
+        self.assertEqual((MSDToken.TEXT, "#"), next(lex))
+        self.assertEqual((MSDToken.TEXT, " STU"), next(lex))
         self.assertRaises(StopIteration, next, lex)
 
     def test_stray_metacharacters(self):
         lex = lex_msd(string=":;#A:B;;:#C:D;")
 
-        self.assertEqual((MSDToken.TEXT, ":;"), next(lex))
+        self.assertEqual((MSDToken.TEXT, ":"), next(lex))
+        self.assertEqual((MSDToken.TEXT, ";"), next(lex))
         self.assertEqual((MSDToken.START_PARAMETER, "#"), next(lex))
         self.assertEqual((MSDToken.TEXT, "A"), next(lex))
         self.assertEqual((MSDToken.NEXT_COMPONENT, ":"), next(lex))
         self.assertEqual((MSDToken.TEXT, "B"), next(lex))
         self.assertEqual((MSDToken.END_PARAMETER, ";"), next(lex))
-        self.assertEqual((MSDToken.TEXT, ";:"), next(lex))
+        self.assertEqual((MSDToken.TEXT, ";"), next(lex))
+        self.assertEqual((MSDToken.TEXT, ":"), next(lex))
         self.assertEqual((MSDToken.START_PARAMETER, "#"), next(lex))
         self.assertEqual((MSDToken.TEXT, "C"), next(lex))
         self.assertEqual((MSDToken.NEXT_COMPONENT, ":"), next(lex))

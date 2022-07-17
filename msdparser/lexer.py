@@ -118,16 +118,12 @@ def lex_msd(
       and :data:`~MSDToken.END_PARAMETER` tokens all represent
       *semantically meaningful* instances of their corresponding
       metacharacters (``#:;``), never escaped or out-of-context instances.
-    * :data:`~MSDToken.TEXT` will always be as long as possible. (You
-      should never find multiple consecutive text tokens.)
     * Concatenating all of the tokenized strings together will produce the
       original input.
 
     Keep in mind that MSD components (particularly values) are often
-    separated into multiple :data:`~MSDToken.TEXT` fragments due to
-    :data:`~MSDToken.ESCAPE` and :data:`~.COMMENT` tokens. Refer to the
-    source code for :func:`parse_msd` to understand how to consume the
-    output of this function.
+    separated into multiple :data:`~MSDToken.TEXT` fragments, possibly with
+    :data:`~MSDToken.ESCAPE` and :data:`~.COMMENT` tokens interspersed.
     """
     file_or_string = file or string
     if file_or_string is None:
@@ -137,10 +133,6 @@ def lex_msd(
 
     textio = file if file else StringIO(string)
 
-    # This buffer stores literal text so that it can be yielded as
-    # a single TEXT token, rather than multiple consecutive tokens.
-    text_buffer = StringIO()
-
     # Part of the MSD document that has been read but not consumed
     msd_buffer = ""
 
@@ -149,6 +141,10 @@ def lex_msd(
 
     # Whether we are done reading from the input file or string
     done_reading = False
+
+    # If the last token yielded was text, its value is stored here.
+    # Used for missing semicolon recovery
+    last_text_token = None
 
     # Only the lexer patterns that match the escapes flag
     # Pull out the regex pattern to reduce property accesses in the tight loop
@@ -196,25 +192,18 @@ def lex_msd(
                     if (
                         pattern.match is LexerMatch.POUND
                         and token is MSDToken.TEXT
-                        and ends_with_newline(text_buffer.getvalue())
+                        and last_text_token
+                        and last_text_token[-1] in "\r\n"
                     ):
                         token = MSDToken.START_PARAMETER
-
-                    # Buffer text until non-text is reached
-                    if token is MSDToken.TEXT:
-                        text_buffer.write(matched_text)
-                        break
-
-                    # Non-text matched, so yield & discard any buffered text
-                    text = text_buffer.getvalue()
-                    if text:
-                        yield (MSDToken.TEXT, text)
-                        text_buffer = StringIO()
 
                     if token is MSDToken.START_PARAMETER:
                         inside_parameter = True
                     elif token is MSDToken.END_PARAMETER:
                         inside_parameter = False
+
+                    if token is MSDToken.TEXT:
+                        last_text_token = matched_text
 
                     yield (token, matched_text)
                     break
@@ -222,8 +211,3 @@ def lex_msd(
             else:
                 # Didn't break from the pattern iterator
                 assert False, f"no regex matches {repr(msd_buffer)}"
-
-    # Yield any remaining text
-    text = text_buffer.getvalue()
-    if text:
-        yield (MSDToken.TEXT, text)
