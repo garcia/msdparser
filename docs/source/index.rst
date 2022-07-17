@@ -63,6 +63,7 @@ Further reading
     :maxdepth: 1
 
     format
+    lexer
     changelog
 
 Indices and tables
