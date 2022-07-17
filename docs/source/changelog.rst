@@ -1,6 +1,12 @@
 Changelog
 ---------
 
+2.0.0-beta.5
+
+* **API change:** The module has been refactored into :mod:`.lexer`, :mod:`.parameter`, and
+  :mod:`.parser` submodules. :func:`.parse_msd`, :class:`.MSDParserError`, and
+  :class:`.MSDParameter` are still exported from the top-level module for convenience.
+
 2.0.0-beta.4
 ~~~~~~~~~~~~
 

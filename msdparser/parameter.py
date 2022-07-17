@@ -1,4 +1,3 @@
-
 from dataclasses import dataclass
 from functools import reduce
 from io import StringIO
@@ -14,7 +13,7 @@ class MSDParameter:
     any backslashes ``\\`` or special substrings.
     """
 
-    MUST_ESCAPE = ("//", ":", ";")
+    _MUST_ESCAPE = ("//", ":", ";")
 
     components: Sequence[str]
     """The raw MSD components. Any special substrings are unescaped."""
@@ -55,10 +54,10 @@ class MSDParameter:
             # Backslashes must be escaped first to avoid double-escaping
             return reduce(
                 lambda key, esc: key.replace(esc, f"\\{esc}"),
-                ("\\",) + MSDParameter.MUST_ESCAPE,
+                ("\\",) + MSDParameter._MUST_ESCAPE,
                 component,
             )
-        elif any(esc in component for esc in MSDParameter.MUST_ESCAPE):
+        elif any(esc in component for esc in MSDParameter._MUST_ESCAPE):
             raise ValueError(f"{repr(component)} can't be serialized without escapes")
         else:
             return component

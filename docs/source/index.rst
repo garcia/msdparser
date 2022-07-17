@@ -55,12 +55,6 @@ Serializing
 
 Prefer to use :class:`.MSDParameter` over interpolating the key/value pairs between ``#:;`` characters yourself. The ``str()`` implementation inserts escape sequences where required, preventing generation of invalid MSD.
 
-API
----
-
-.. automodule:: msdparser
-    :members:
-
 
 Further reading
 ---------------
