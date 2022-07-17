@@ -96,35 +96,6 @@ LEXER_PATTERNS = [
 ]
 
 
-class TextBuffer(str):
-    buffer: StringIO
-
-    def __init__(self):
-        self._reset()
-
-    def _reset(self):
-        self.buffer = StringIO()
-
-    def write(self, value: str):
-        self.buffer.write(value)
-
-    def ends_with_newline(self) -> bool:
-        value = self.buffer.getvalue()
-        return any(value.endswith(c) for c in "\r\n")
-
-    def complete(self) -> Iterator[Tuple[MSDToken, str]]:
-        """
-        Yield a Text token for the buffered text & clear the buffer.
-
-        Returns True if the buffered text ends with a newline.
-        """
-        if self.buffer:
-            value = self.buffer.getvalue()
-            if value:
-                yield (MSDToken.TEXT, value)
-        self._reset()
-
-
 def lex_msd(
     *,
     file: Optional[TextIO] = None,
@@ -168,7 +139,7 @@ def lex_msd(
 
     # This buffer stores literal text so that it can be yielded as
     # a single TEXT token, rather than multiple consecutive tokens.
-    text_buffer = TextBuffer()
+    text_buffer = StringIO()
 
     # Part of the MSD document that has been read but not consumed
     msd_buffer = ""
@@ -189,6 +160,9 @@ def lex_msd(
             if pattern.escapes in (None, escapes)
         ],
     )
+
+    def ends_with_newline(text) -> bool:
+        return text and text[-1] in "\r\n"
 
     while not done_reading:
         chunk = textio.read(4096)
@@ -222,7 +196,7 @@ def lex_msd(
                     if (
                         pattern.match is LexerMatch.POUND
                         and token is MSDToken.TEXT
-                        and text_buffer.ends_with_newline()
+                        and ends_with_newline(text_buffer.getvalue())
                     ):
                         token = MSDToken.START_PARAMETER
 
@@ -232,7 +206,10 @@ def lex_msd(
                         break
 
                     # Non-text matched, so yield & discard any buffered text
-                    yield from text_buffer.complete()
+                    text = text_buffer.getvalue()
+                    if text:
+                        yield (MSDToken.TEXT, text)
+                        text_buffer = StringIO()
 
                     if token is MSDToken.START_PARAMETER:
                         inside_parameter = True
@@ -242,7 +219,11 @@ def lex_msd(
                     yield (token, matched_text)
                     break
 
-            else:  # didn't break from the pattern iterator
+            else:
+                # Didn't break from the pattern iterator
                 assert False, f"no regex matches {repr(msd_buffer)}"
 
-    yield from text_buffer.complete()
+    # Yield any remaining text
+    text = text_buffer.getvalue()
+    if text:
+        yield (MSDToken.TEXT, text)
