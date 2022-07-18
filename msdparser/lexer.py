@@ -2,7 +2,7 @@ from dataclasses import dataclass
 import enum
 from io import StringIO
 import re
-from typing import Iterator, List, Optional, Pattern, TextIO, Tuple, cast
+from typing import Iterator, List, Optional, TextIO, Tuple, cast
 
 
 __all__ = ["MSDToken", "lex_msd"]
