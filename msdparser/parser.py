@@ -1,5 +1,5 @@
 from io import StringIO
-from typing import Iterator, List, Optional, TextIO
+from typing import Iterable, Iterator, List, Optional, TextIO, Tuple
 
 from .lexer import lex_msd, MSDToken
 from .parameter import MSDParameter
@@ -21,14 +21,19 @@ def parse_msd(
     *,
     file: Optional[TextIO] = None,
     string: Optional[str] = None,
+    tokens: Optional[Iterable[Tuple[MSDToken, str]]] = None,
     escapes: bool = True,
     ignore_stray_text: bool = False,
 ) -> Iterator[MSDParameter]:
     """
     Parse MSD data into a stream of :class:`.MSDParameter` objects.
 
-    Expects either a `file` (any file-like object) or a `string`
-    containing MSD data, but not both.
+    Input is specified using exactly one of these named parameters:
+
+    * `file`:   any file-like object
+    * `string`: string containing MSD data
+    * `tokens`: iterable of (:class:`.MSDToken`, str) tuples;
+      see :func:`.lex_msd` for details
 
     Most modern applications of MSD (like the SM and SSC formats) treat
     backslashes as escape characters, but some older ones (like DWI) don't.
@@ -38,6 +43,12 @@ def parse_msd(
     encountered between parameters, unless `ignore_stray_text` is True, in
     which case the stray text is simply discarded.
     """
+    if sum(param is None for param in (file, string, tokens)) != 2:
+        raise TypeError(
+            "Must provide exactly one of `file`, `string`, or `tokens` "
+            "as a named argument"
+        )
+
     # A partial MSD parameter
     components: List[StringIO] = []
 
@@ -80,11 +91,14 @@ def parse_msd(
 
         return parameter
 
-    for token, value in lex_msd(
-        file=file,
-        string=string,
-        escapes=escapes,
-    ):
+    if tokens is None:
+        tokens = lex_msd(
+            file=file,
+            string=string,
+            escapes=escapes,
+        )
+
+    for token, value in tokens:
         if token is MSDToken.TEXT:
             push_text(value)
 
