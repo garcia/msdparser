@@ -24,7 +24,7 @@ class MSDParameter:
         The first MSD component, the part immediately after the ``#`` sign.
 
         Raises ``IndexError`` if :attr:`~.components` is an empty sequence
-        (:func:`parse_msd` will never produce such a parameter).
+        (:func:`.parse_msd` will never produce such a parameter).
         """
         return self.components[0]
 
@@ -34,6 +34,8 @@ class MSDParameter:
         The second MSD component, separated from the key by a ``:``.
 
         Returns None if the parameter ends after the key with no ``:``.
+        This rarely happens in practice and is typically treated the same
+        as a blank value.
         """
         try:
             return self.components[1]

@@ -1,16 +1,20 @@
 Changelog
 ---------
 
+2.0.0-rc.1
+~~~~~~~~~~
+
+* **Feature:** :func:`.parse_msd` can now take a third input argument, `tokens`, to allow
+  the output of :func:`.lex_msd` to be processed before parsing.
+* **Enhancement:** :func:`.lex_msd` no longer groups consecutive :attr:`~.MSDToken.TEXT`
+  tokens. This prevents it from performing multiple I/O operations between yields.
+
 2.0.0-beta.5
 ~~~~~~~~~~~~
 
 * **API change:** The module has been refactored into :mod:`.lexer`, :mod:`.parameter`, and
   :mod:`.parser` submodules. :func:`.parse_msd`, :class:`.MSDParserError`, and
   :class:`.MSDParameter` are still exported from the top-level module for convenience.
-* **Feature:** :func:`.parse_msd` can now take a third input argument, `tokens`, to allow
-  the output of :func:`.lex_msd` to be processed before parsing.
-* **Enhancement:** :func:`.lex_msd` no longer groups consecutive :attr:`~.MSDToken.TEXT`
-  tokens. This prevents it from performing multiple I/O operations between yields.
 
 2.0.0-beta.4
 ~~~~~~~~~~~~

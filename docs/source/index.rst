@@ -1,50 +1,39 @@
 msdparser
 =========
 
-Simple MSD parser for Python.
-MSD is the underlying file format for a few rhythm games,
-most notably both StepMania simfile formats (.sm and .ssc).
+A robust & lightning fast MSD parser for Python.
+MSD is the underlying file format for the SM and SSC simfile formats used by StepMania,
+as well as a few older formats like DWI.
 
-Parsing
--------
 
-:func:`.parse_msd` takes a named `file` or `string` argument
+Quickstart
+----------
+
+:func:`.parse_msd` takes a **named** `file` or `string` argument
 and yields :class:`.MSDParameter` instances:
 
 .. doctest::
 
+    >>> msd_data = """
+    ... #VERSION:0.83;
+    ... #TITLE:Springtime;
+    ... #SUBTITLE:;
+    ... #ARTIST:Kommisar;
+    ... """
     >>> from msdparser import parse_msd
-    >>> with open('testdata/Springtime.ssc', 'r', encoding='utf-8') as simfile:
-    ...     for param in parse_msd(file=simfile):
-    ...         if param.key == 'NOTEDATA': break   # stop at the first SSC chart
-    ...         if not param.value: continue        # hide empty values
-    ...         print(param.key, '=', repr(param.value))
+    >>> for param in parse_msd(string=msd_data):
+    ...         print(
+    ...             "key=" + repr(param.key),
+    ...             "value=" + repr(param.value),
+    ...         )
     ...
-    VERSION = '0.83'
-    TITLE = 'Springtime'
-    ARTIST = 'Kommisar'
-    BANNER = 'springbn.png'
-    BACKGROUND = 'spring.png'
-    MUSIC = 'Kommisar - Springtime.mp3'
-    OFFSET = '-0.090'
-    SAMPLESTART = '105.760'
-    SAMPLELENGTH = '15'
-    SELECTABLE = 'YES'
-    DISPLAYBPM = '182'
-    BPMS = '0=181.685'
-    TIMESIGNATURES = '0=4=4'
-    TICKCOUNTS = '0=2'
-    COMBOS = '0=1'
-    SPEEDS = '0=1=0=0'
-    SCROLLS = '0=1'
-    LABELS = '0=Song Start'
-
-
-Serializing
------------
+    key='VERSION' value='0.83'
+    key='TITLE' value='Springtime'
+    key='SUBTITLE' value=''
+    key='ARTIST' value='Kommisar'
 
 :class:`.MSDParameter` instances stringify back to MSD.
-They can be created from a sequence of strings:
+They can be created from a sequence of strings, typically the key and value:
 
 .. code-block:: python
 
