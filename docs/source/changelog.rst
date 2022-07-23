@@ -1,81 +1,69 @@
 Changelog
----------
+=========
 
-2.0.0-rc.1
-~~~~~~~~~~
+2.0.0
+-----
 
-* **Feature:** :func:`.parse_msd` can now take a third input argument, `tokens`, to allow
-  the output of :func:`.lex_msd` to be processed before parsing.
-* **Enhancement:** :func:`.lex_msd` no longer groups consecutive :attr:`~.MSDToken.TEXT`
-  tokens. This prevents it from performing multiple I/O operations between yields.
+.. warning::
 
-2.0.0-beta.5
+    Per semantic versioning,
+    msdparser version 2 includes one **breaking change**
+    that will require updated client code:
+    
+    * The return type of :func:`.parse_msd` has been changed
+      from :code:`Tuple[str, str]` to :class:`.MSDParameter`,
+      a dataclass with :attr:`~.key` and :attr:`~.value` properties
+      that index into a sequence of :attr:`~.components`.
+      This means you can no longer iterate over :func:`.parse_msd`'s output
+      using :code:`for key, value in parse_msd(...)`.
+      Instead, you'll want to write :code:`for param in parse_msd(...)`
+      and use the :data:`.key`, and :data:`.value` properties.
+    
+    This change is motivated by two deviations from the spec
+    that have been corrected in this version:
+
+    * Escape sequences are now handled by default.
+      While the absence of this feature was technically a bug in version 1,
+      fixing it changes how certain MSD documents are parsed.
+      Backslash escapes can be disabled by passing :code:`escapes=False` to :func:`.parse_msd`,
+      restoring the behavior from version 1
+      and preserving spec-compliant parsing of older formats like DWI.
+    * Unescaped colons (``:``) after the key are no longer treated as literal text:
+      now a colon *always* separates components,
+      and the key and value are defined as the first and second components.
+      This brings the parser into parity with StepMania
+      when unexpected colons appear after a parameter's key.
+
+
+New features
 ~~~~~~~~~~~~
 
-* **API change:** The module has been refactored into :mod:`.lexer`, :mod:`.parameter`, and
-  :mod:`.parser` submodules. :func:`.parse_msd`, :class:`.MSDParserError`, and
-  :class:`.MSDParameter` are still exported from the top-level module for convenience.
+* The newly introduced :class:`.MSDParameter` class
+  stringifies to valid MSD,
+  escaping special characters by default.
+  Client code that performs ad-hoc serialization
+  is encouraged to adopt this usage pattern
+  to avoid generation of invalid MSD.
+* A new :mod:`.lexer` module provides the function :func:`.lex_msd`,
+  a lexer for MSD data which produces (token, string) tuples.
+  This lexer is now used by :func:`.parse_msd` under the hood,
+  which also serves as a reference implementation
+  for consuming the output of the lexer.
+* :func:`.parse_msd` can now take a third input argument, `tokens`,
+  to allow the output of :func:`.lex_msd`
+  to be processed before parsing.
 
-2.0.0-beta.4
+Enhancements
 ~~~~~~~~~~~~
 
-* **Enhancement:** :attr:`.MSDParameter.key`'s type has been narrowed from ``Optional[str]``
-  to ``str``.
-
-2.0.0-beta.3
-~~~~~~~~~~~~
-
-* **Feature:** Added :func:`.lex_msd`, a lexer for MSD data which produces (token, string)
-  tuples. This lexer is now used by :func:`.parse_msd` under the hood, which also serves as a
-  reference implementation for consuming the output of the lexer.
-* **Enhancement:** :func:`.parse_msd` is now up to 10 times faster than version 1.0!
-* **Enhancement:** :class:`.MSDParserError` now provides the last parameter's key prior to
-  encountering stray text for ease of debugging.
-
-2.0.0-beta.2
-~~~~~~~~~~~~
-
-This release significantly changes how multi-value parameters are handled. Unescaped colons
-(``:``) after the key are no longer treated as literal text: now a colon _always_ separates
-components, and the key and value are defined as the first and second components. This
-brings **msdparser** into parity with StepMania when unexpected colons appear after a
-parameter's key.
-
-**API change:** :class:`.MSDParameter` is no longer a subclass of ``NamedTuple``. Instead,
-it's a dataclass with :attr:`~.key` and :attr:`~.value` properties that index into a sequence
-of :attr:`~.components`.
-
-2.0.0-beta.1
-~~~~~~~~~~~~
-
-**Bugfix/feature:** Escape sequences are now handled by default. While the
-absence of this feature was technically a bug in the spec (escapes have been
-supported since the SM format!), this is still a breaking change, hence the
-major version bump.
-
-Backslash escapes can be disabled by passing :code:`escapes=False` to :func:`.parse_msd`,
-restoring the 1.0.0 behavior and preserving spec-compliant parsing of older
-formats like DWI.
-
-**Feature:** The return type of :func:`.parse_msd` has been changed from 
-:code:`Tuple[str, str]` to :class:`.MSDParameter`, which is a :code:`NamedTuple` of two strings, 
-`key` and `value`. Stringifying an :class:`.MSDParameter` interpolates the key/value 
-pair into the MSD :code:`#KEY:VALUE;` format, escaping special characters by default.
-
-Existing :func:`.parse_msd` client code that expects :code:`(key, value)` tuples should 
-still operate fine, but you can now also access the key/value pair as `key` / 
-`value` properties on the yielded objects.
-
-**Enhancement:** :func:`.parse_msd` has been optimized for most MSD documents,
-particularly those containing large blocks of note data.
+* :func:`.parse_msd` has been optimized for most MSD documents,
+  particularly those containing large blocks of note data.
+  The function is now up to 10 times faster than version 1!
+* :class:`.MSDParserError` now provides the last parameter's key
+  prior to encountering stray text
+  for ease of debugging.
 
 1.0.0
-~~~~~
+-----
 
 Initial stable release.
-
-1.0.0-beta.1
-~~~~~~~~~~~~
-
-* The :code:`MSDParser` class has been converted into the more suitable :func:`.parse_msd` function.
-* Semicolons between parameters are now correctly handled as stray text.
