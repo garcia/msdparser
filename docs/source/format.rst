@@ -42,8 +42,7 @@ by prefixing it with a ``\``.
 and :class:`.MSDParameter`'s components are always stored unescaped.
 
 Older applications treat backslashes as regular text,
-and consequently do not permit a literal ``:`` or ``;``
-in keys or values.
+and consequently do not support literal ``:``, ``;``, or ``//`` tokens.
 This behavior can be replicated
 by setting `escapes` to ``False`` in
 :func:`.parse_msd`,
