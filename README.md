@@ -1,37 +1,80 @@
 # msdparser
 
-Simple MSD parser for Python. MSD is the underlying file format for many rhythm games, most notably both StepMania simfile formats (.sm and .ssc).
+A robust & lightning fast MSD parser for Python.
+MSD is the underlying file format
+for the SM and SSC simfile formats used by StepMania,
+as well as a few older formats like DWI.
 
-## Installing
+Full documentation can be found on **[Read the Docs](https://msdparser.readthedocs.io/en/latest/)**.
 
-`msdparser` is available on PyPI. During the current beta phase, make sure to pass `--pre` to `pip`:
+## Features
 
-    pip install --pre msdparser
+- Speed-optimized lexer & low-overhead parser
+- Support for escape sequences by default
+- Strict & lenient parse modes
 
-## Usage
+## Installation
 
-`parse_msd` takes a named `file` or `string` argument and yields parameters as (key, value) pairs of strings:
+`msdparser` is available on PyPI:
 
-    from msdparser import parse_msd
+```sh
+pip install msdparser
+```
 
-    with open('simfile.sm', 'r', encoding='utf-8') as simfile:
-        for (key, value) in parse_msd(file=simfile):
-            if key == 'NOTES':
-                break
-            print(key, '=', repr(value))
+## Quickstart
 
-## Documentation
+`parse_msd` takes a **named** _file_ or _string_ argument and yields `MSDParameter` instances:
 
-https://msdparser.readthedocs.io/en/latest/
+```python
+>>> msd_data = """
+... #VERSION:0.83;
+... #TITLE:Springtime;
+... #SUBTITLE:;
+... #ARTIST:Kommisar;
+... """
+>>> from msdparser import parse_msd
+>>> for param in parse_msd(string=msd_data):
+...         print(
+...             "key=" + repr(param.key),
+...             "value=" + repr(param.value),
+...         )
+...
+key='VERSION' value='0.83'
+key='TITLE' value='Springtime'
+key='SUBTITLE' value=''
+key='ARTIST' value='Kommisar'
+```
 
-## The MSD format
+`MSDParameter` instances stringify back to MSD.
+They can be created from a sequence of strings,
+typically the key and value:
 
-In general, MSD key-value pairs look like `#KEY:VALUE;` - the `#` starts a parameter, the first `:` separates the key from the value, and the `;` terminates the value. Keys are not expected to be unique. There are no escape sequences.
+```python
+>>> from msdparser import MSDParameter
+>>> pairs = [('TITLE', 'Springtime'), ('ARTIST', 'Kommisar')]
+>>> for key, value in pairs:
+...     print(str(MSDParameter([key, value])))
+...
+#TITLE:Springtime;
+#ARTIST:Kommisar;
+```
 
-Comments start with `//` and persist until the end of the line.
+Prefer to use `MSDParameter`
+over interpolating the key/value pairs
+between `#:;` characters yourself.
+The `str()` implementation inserts escape sequences where required,
+preventing generation of invalid MSD.
 
-Keys can contain any text except for `:`, `//`, and a newline followed by a `#` (see below). Values are the same, except `:` is allowed.
+## Developing
 
-Keys and values can be blank. The `:` separator can even be omitted, which has the same result as a blank value.
+**msdparser** uses Pipenv for dependency management. Activate the environment:
 
-StepMania recovers from a missing `;` if it finds a `#` marker at the start of a line, so this parser does too.
+    pipenv shell
+
+To run the unit tests:
+
+    py -m unittest
+
+To build the documentation:
+
+    docs/make html

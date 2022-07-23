@@ -1,49 +1,67 @@
 msdparser
 =========
 
-Simple MSD parser for Python. MSD is the underlying file format for many rhythm games, most notably both StepMania simfile formats (.sm and .ssc).
+A robust & lightning fast MSD parser for Python.
+MSD is the underlying file format
+for the SM and SSC simfile formats used by StepMania,
+as well as a few older formats like DWI.
 
-Usage
------
 
-:func:`.parse_msd` takes a named `file` or `string` argument and yields parameters as (key, value) pairs of strings:
+Quickstart
+----------
+
+:func:`.parse_msd` takes a **named** `file` or `string` argument
+and yields :class:`.MSDParameter` instances:
 
 .. doctest::
 
+    >>> msd_data = """
+    ... #VERSION:0.83;
+    ... #TITLE:Springtime;
+    ... #SUBTITLE:;
+    ... #ARTIST:Kommisar;
+    ... """
     >>> from msdparser import parse_msd
-    >>> with open('simfile.sm', 'r', encoding='utf-8') as simfile:
-    ...     for (key, value) in parse_msd(file=simfile):
-    ...         if key == 'NOTES':
-    ...             break
-    ...         print(key, '=', repr(value))
+    >>> for param in parse_msd(string=msd_data):
+    ...         print(
+    ...             "key=" + repr(param.key),
+    ...             "value=" + repr(param.value),
+    ...         )
+    ...
+    key='VERSION' value='0.83'
+    key='TITLE' value='Springtime'
+    key='SUBTITLE' value=''
+    key='ARTIST' value='Kommisar'
 
-The MSD format
---------------
+:class:`.MSDParameter` instances stringify back to MSD.
+They can be created from a sequence of strings,
+typically the key and value:
 
-In general, MSD key-value pairs look like :code:`#KEY:VALUE;` - the :code:`#` starts a parameter, the first :code:`:` separates the key from the value, and the :code:`;` terminates the value. Keys are not expected to be unique. There are no escape sequences.
+.. code-block:: python
 
-Comments start with :code:`//` and persist until the end of the line.
+    >>> from msdparser import MSDParameter
+    >>> pairs = [('TITLE', 'Springtime'), ('ARTIST', 'Kommisar')]
+    >>> for key, value in pairs:
+    ...     print(str(MSDParameter([key, value])))
+    ...
+    #TITLE:Springtime;
+    #ARTIST:Kommisar;
 
-Keys can contain any text except for :code:`:`, :code:`//`, and a newline followed by a :code:`#` (see below). Values are the same, except :code:`:` is allowed.
+Prefer to use :class:`.MSDParameter`
+over interpolating the key/value pairs between ``#:;`` characters yourself.
+The ``str()`` implementation inserts escape sequences where required,
+preventing generation of invalid MSD.
 
-Keys and values can be blank. The :code:`:` separator can even be omitted, which has the same result as a blank value.
 
-StepMania recovers from a missing :code:`;` if it finds a :code:`#` marker at the start of a line, so this parser does too.
+Further reading
+---------------
 
-API
----
+.. toctree::
+    :maxdepth: 1
 
-.. automodule:: msdparser
-    :members:
-
-Changelog
----------
-
-2.0.0-beta.1
-~~~~~~~~~~~~
-
-* The :code:`MSDParser` class has been converted into the more suitable :func:`.parse_msd` function.
-* Semicolons between parameters are now correctly handled as stray text.
+    format
+    lexer
+    changelog
 
 Indices and tables
 ==================
