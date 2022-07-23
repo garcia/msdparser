@@ -2,7 +2,8 @@ msdparser
 =========
 
 A robust & lightning fast MSD parser for Python.
-MSD is the underlying file format for the SM and SSC simfile formats used by StepMania,
+MSD is the underlying file format
+for the SM and SSC simfile formats used by StepMania,
 as well as a few older formats like DWI.
 
 
@@ -33,7 +34,8 @@ and yields :class:`.MSDParameter` instances:
     key='ARTIST' value='Kommisar'
 
 :class:`.MSDParameter` instances stringify back to MSD.
-They can be created from a sequence of strings, typically the key and value:
+They can be created from a sequence of strings,
+typically the key and value:
 
 .. code-block:: python
 

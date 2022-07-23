@@ -1,63 +1,80 @@
 # msdparser
 
-Simple MSD parser for Python. MSD is the underlying file format for many rhythm games, most notably both StepMania simfile formats (.sm and .ssc).
+A robust & lightning fast MSD parser for Python.
+MSD is the underlying file format
+for the SM and SSC simfile formats used by StepMania,
+as well as a few older formats like DWI.
 
-## Installing
+Full documentation can be found on **[Read the Docs](https://msdparser.readthedocs.io/en/latest/)**.
 
-`msdparser` is available on PyPI. During the current 2.0 beta phase, make sure to pass `--pre` to `pip`:
+## Features
+
+- Speed-optimized lexer & low-overhead parser
+- Support for escape sequences by default
+- Strict & lenient parse modes
+
+## Installation
+
+`msdparser` is available on PyPI:
 
 ```sh
-pip install --pre msdparser
+pip install msdparser
 ```
 
-## Parsing
+## Quickstart
 
-`parse_msd` takes a named `file` or `string` argument and yields `MSDParameter` instances:
+`parse_msd` takes a **named** _file_ or _string_ argument and yields `MSDParameter` instances:
 
 ```python
+>>> msd_data = """
+... #VERSION:0.83;
+... #TITLE:Springtime;
+... #SUBTITLE:;
+... #ARTIST:Kommisar;
+... """
 >>> from msdparser import parse_msd
->>> with open('testdata/Springtime.ssc', 'r', encoding='utf-8') as simfile:
-...     for param in parse_msd(file=simfile):
-...         if param.key == 'NOTEDATA': break   # stop at the first chart
-...         if not param.value: continue        # hide empty values
-...         print(param.key, '=', repr(param.value))
+>>> for param in parse_msd(string=msd_data):
+...         print(
+...             "key=" + repr(param.key),
+...             "value=" + repr(param.value),
+...         )
 ...
-VERSION = '0.83'
-TITLE = 'Springtime'
-ARTIST = 'Kommisar'
-BANNER = 'springbn.png'
-BACKGROUND = 'spring.png'
-MUSIC = 'Kommisar - Springtime.mp3'
-OFFSET = '-0.090'
-SAMPLESTART = '105.760'
-SAMPLELENGTH = '15'
-SELECTABLE = 'YES'
-DISPLAYBPM = '182'
-BPMS = '0=181.685'
-TIMESIGNATURES = '0=4=4'
-TICKCOUNTS = '0=2'
-COMBOS = '0=1'
-SPEEDS = '0=1=0=0'
-SCROLLS = '0=1'
-LABELS = '0=Song Start'
+key='VERSION' value='0.83'
+key='TITLE' value='Springtime'
+key='SUBTITLE' value=''
+key='ARTIST' value='Kommisar'
 ```
 
-## Serializing
-
-`MSDParameter` instances stringify back to MSD. They can be created from a sequence of strings:
+`MSDParameter` instances stringify back to MSD.
+They can be created from a sequence of strings,
+typically the key and value:
 
 ```python
 >>> from msdparser import MSDParameter
 >>> pairs = [('TITLE', 'Springtime'), ('ARTIST', 'Kommisar')]
 >>> for key, value in pairs:
-...     print(str(MSDParameter(key=key, value=value)))
+...     print(str(MSDParameter([key, value])))
 ...
 #TITLE:Springtime;
 #ARTIST:Kommisar;
 ```
 
-Prefer to use `MSDParameter` over interpolating the key/value pairs between `#:;` characters yourself. The `str()` implementation inserts escape sequences where required, preventing generation of invalid MSD.
+Prefer to use `MSDParameter`
+over interpolating the key/value pairs
+between `#:;` characters yourself.
+The `str()` implementation inserts escape sequences where required,
+preventing generation of invalid MSD.
 
-## Documentation
+## Developing
 
-https://msdparser.readthedocs.io/en/latest/
+**msdparser** uses Pipenv for dependency management. Activate the environment:
+
+    pipenv shell
+
+To run the unit tests:
+
+    py -m unittest
+
+To build the documentation:
+
+    docs/make html
