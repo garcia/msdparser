@@ -1,6 +1,16 @@
 Changelog
 =========
 
+2.1.0
+-----
+
+* Stringifying an :class:`.MSDParameter` with escapes enabled
+  will now escape any `#` characters inside a component.
+  While this is not required by the inferred spec,
+  StepMania has difficulties dealing with a `#`
+  as the very first character of a component,
+  and simply escaping it resolves the issue.
+
 2.0.0
 -----
 

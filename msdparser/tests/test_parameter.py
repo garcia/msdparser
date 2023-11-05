@@ -51,3 +51,8 @@ class TestMSDParameter(unittest.TestCase):
 
         for invalid_param in invalid_params:
             self.assertRaises(ValueError, invalid_param.__str__, escapes=False)
+
+    def test_str_with_pound(self):
+        param = MSDParameter(("key", "#value"))
+        self.assertEqual("#key:#value;", param.__str__(escapes=False))
+        self.assertEqual("#key:\\#value;", param.__str__(escapes=True))

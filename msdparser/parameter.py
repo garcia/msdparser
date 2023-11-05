@@ -14,6 +14,7 @@ class MSDParameter:
     """
 
     _MUST_ESCAPE = ("//", ":", ";")
+    _SHOULD_ESCAPE = ("\\", "#")
 
     components: Sequence[str]
     """The raw MSD components. Any special substrings are unescaped."""
@@ -56,7 +57,7 @@ class MSDParameter:
             # Backslashes must be escaped first to avoid double-escaping
             return reduce(
                 lambda key, esc: key.replace(esc, f"\\{esc}"),
-                ("\\",) + MSDParameter._MUST_ESCAPE,
+                MSDParameter._SHOULD_ESCAPE + MSDParameter._MUST_ESCAPE,
                 component,
             )
         elif any(esc in component for esc in MSDParameter._MUST_ESCAPE):
