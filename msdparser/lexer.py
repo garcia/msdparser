@@ -157,9 +157,6 @@ def lex_msd(
         ],
     )
 
-    def ends_with_newline(text) -> bool:
-        return text and text[-1] in "\r\n"
-
     while not done_reading:
         chunk = textio.read(4096)
         if not chunk:
