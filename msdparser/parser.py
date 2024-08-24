@@ -48,6 +48,10 @@ def parse_msd(
             "Must provide exactly one of `file`, `string`, or `tokens` "
             "as a named argument"
         )
+    
+    # Any text before the first parameter.
+    # After the first parameter, this is set to None and never used again.
+    preamble: Optional[StringIO] = StringIO()
 
     # A partial MSD parameter
     components: List[StringIO] = []
@@ -55,15 +59,29 @@ def parse_msd(
     # Whether we are inside a parameter (`#...;`)
     inside_parameter: bool = False
 
+    # Line number inside parameter (starting from the opening `#`)
+    line_inside_parameter: int = 0
+
+    # Mapping of line numbers to comments (there can only be one per line)
+    comments: dict[int, str] = {}
+
+    # Any text after a parameter and before the next parameter
+    suffix = StringIO()
+
     # The last parameter we've seen (useful for debugging stray text)
     last_key: Optional[str] = None
 
     def push_text(text: str) -> None:
         """Append to the last component if inside a parameter, or handle stray text"""
+        nonlocal components, line_inside_parameter, last_key
+        
         if inside_parameter:
             components[-1].write(text)
-        elif not ignore_stray_text:
-            if text and not text.isspace() and text != "\ufeff":
+            # TODO: decide how / whether to handle '\r'
+            line_inside_parameter += value.count('\n')
+        else:
+            suffix.write(text)
+            if text and not ignore_stray_text and not text.isspace() and text != "\ufeff":
                 char = text.lstrip()[0]
                 if last_key is None:
                     at_location = "at start of document"
@@ -77,19 +95,40 @@ def parse_msd(
         inside_parameter = True
         components.append(StringIO())
 
-    def complete_parameter() -> MSDParameter:
-        """Form the components into an MSDParameter and reset the state"""
-        nonlocal last_key, components, inside_parameter
+    def next_parameter() -> Iterator[MSDParameter]:
+        """
+        Form the components into an MSDParameter and reset the state.
+        Should be called at the start of the next component (or EOF)
+        so that suffix text can be included.
+        """
+        nonlocal \
+            preamble, \
+            components, \
+            inside_parameter, \
+            line_inside_parameter, \
+            suffix, \
+            comments, \
+            last_key
 
+        if len(components) == 0:
+            return
+        
         parameter = MSDParameter(
-            tuple(component.getvalue() for component in components)
+            components=tuple(component.getvalue() for component in components),
+            preamble=preamble and preamble.getvalue(),
+            comments=comments.copy(),
+            suffix=suffix.getvalue()
         )
 
-        last_key = parameter.key
+        if preamble:
+            preamble = None
         components = []
-        inside_parameter = False
+        inside_parameter = True
+        line_inside_parameter = 0
+        comments = {}
+        suffix = StringIO()
 
-        return parameter
+        yield parameter
 
     if tokens is None:
         tokens = lex_msd(
@@ -103,29 +142,32 @@ def parse_msd(
             push_text(value)
 
         elif token is MSDToken.START_PARAMETER:
-            if inside_parameter:
-                # The lexer only allows this condition at the start of the line
-                # (otherwise the '#' will be emitted as text).
-                yield complete_parameter()
+            if len(components) > 0:
+                yield from next_parameter()
             next_component()
 
         elif token is MSDToken.END_PARAMETER:
-            if inside_parameter:
-                yield complete_parameter()
+            assert inside_parameter
+            inside_parameter = False
+            last_key = components[0].getvalue()
 
         elif token is MSDToken.NEXT_COMPONENT:
-            if inside_parameter:
-                next_component()
+            assert inside_parameter
+            next_component()
 
         elif token is MSDToken.ESCAPE:
             push_text(value[1])
 
         elif token is MSDToken.COMMENT:
-            pass
-
+            if inside_parameter:
+                comments[line_inside_parameter] = value
+            else:
+                if preamble:
+                    preamble.write(value)
+                else:
+                    suffix.write(value)
         else:
             assert False, f"unexpected token {token}"
 
-    # Handle missing ';' at the end of the input
-    if inside_parameter:
-        yield complete_parameter()
+    # Remember to output the last parameter
+    yield from next_parameter()

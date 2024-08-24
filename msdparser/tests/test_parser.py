@@ -38,69 +38,86 @@ class TestParseMSD(unittest.TestCase):
     def test_comments(self):
         parse = parse_msd(string="#A// comment //\r\nBC:D// ; \nEF;//#NO:PE;")
 
-        self.assertEqual(MSDParameter(("A\r\nBC", "D\nEF")), next(parse))
+        parameter = next(parse)
+        self.assertEqual(("A\r\nBC", "D\nEF"), parameter.components)
         self.assertRaises(StopIteration, next, parse)
 
     def test_comment_with_no_newline_at_eof(self):
         parse = parse_msd(string="#ABC:DEF// eof")
 
-        self.assertEqual(MSDParameter(("ABC", "DEF")), next(parse))
+        parameter = next(parse)
+        self.assertEqual(("ABC", "DEF"), parameter.components)
         self.assertRaises(StopIteration, next, parse)
 
     def test_empty_key(self):
         parse = parse_msd(string="#:ABC;#:DEF;")
 
-        self.assertEqual(MSDParameter(("", "ABC")), next(parse))
-        self.assertEqual(MSDParameter(("", "DEF")), next(parse))
+        parameter = next(parse)
+        self.assertEqual(("", "ABC"), parameter.components)
+        parameter = next(parse)
+        self.assertEqual(("", "DEF"), parameter.components)
         self.assertRaises(StopIteration, next, parse)
 
     def test_empty_value(self):
         parse = parse_msd(string="#ABC:;#DEF:;")
 
-        self.assertEqual(MSDParameter(("ABC", "")), next(parse))
-        self.assertEqual(MSDParameter(("DEF", "")), next(parse))
+        parameter = next(parse)
+        self.assertEqual(("ABC", ""), parameter.components)
+        parameter = next(parse)
+        self.assertEqual(("DEF", ""), parameter.components)
         self.assertRaises(StopIteration, next, parse)
 
     def test_missing_value(self):
         parse = parse_msd(string="#ABC;#DEF;")
 
-        param = next(parse)
-        self.assertEqual(MSDParameter(("ABC",)), param)
-        self.assertIsNone(param.value)
-        self.assertEqual(MSDParameter(("DEF",)), next(parse))
+        parameter = next(parse)
+        self.assertEqual(("ABC",), parameter.components)
+        self.assertIsNone(parameter.value)
+        parameter = next(parse)
+        self.assertEqual(("DEF",), parameter.components)
         self.assertRaises(StopIteration, next, parse)
 
     def test_missing_semicolon(self):
         parse = parse_msd(string="#A:B\nCD;#E:FGH\n#IJKL// comment\n#M:NOP")
 
-        self.assertEqual(MSDParameter(("A", "B\nCD")), next(parse))
-        self.assertEqual(MSDParameter(("E", "FGH\n")), next(parse))
-        self.assertEqual(MSDParameter(("IJKL\n",)), next(parse))
-        self.assertEqual(MSDParameter(("M", "NOP")), next(parse))
+        parameter = next(parse)
+        self.assertEqual(("A", "B\nCD"), parameter.components)
+        parameter = next(parse)
+        self.assertEqual(("E", "FGH\n"), parameter.components)
+        parameter = next(parse)
+        self.assertEqual(("IJKL\n",), parameter.components)
+        parameter = next(parse)
+        self.assertEqual(("M", "NOP"), parameter.components)
         self.assertRaises(StopIteration, next, parse)
 
     def test_missing_value_and_semicolon(self):
         parse = parse_msd(string="#A\n#B\n#C\n")
 
-        self.assertEqual(MSDParameter(("A\n",)), next(parse))
-        self.assertEqual(MSDParameter(("B\n",)), next(parse))
-        self.assertEqual(MSDParameter(("C\n",)), next(parse))
+        parameter = next(parse)
+        self.assertEqual(("A\n",), parameter.components)
+        parameter = next(parse)
+        self.assertEqual(("B\n",), parameter.components)
+        parameter = next(parse)
+        self.assertEqual(("C\n",), parameter.components)
         self.assertRaises(StopIteration, next, parse)
 
     def test_unicode(self):
         parse = parse_msd(string="#TITLE:実例;\n#ARTIST:楽士;")
 
-        self.assertEqual(MSDParameter(("TITLE", "実例")), next(parse))
-        self.assertEqual(MSDParameter(("ARTIST", "楽士")), next(parse))
+        parameter = next(parse)
+        self.assertEqual(("TITLE", "実例"), parameter.components)
+        parameter = next(parse)
+        self.assertEqual(("ARTIST", "楽士"), parameter.components)
         self.assertRaises(StopIteration, next, parse)
 
     def test_stray_text(self):
-        parse = parse_msd(string="#A:B;n#C:D;")
+        parse = parse_msd(string="#A:B;#C:D;n#E:F;")
 
-        self.assertEqual(MSDParameter(("A", "B")), next(parse))
+        parameter = next(parse)
+        self.assertEqual(("A", "B"), parameter.components)
         self.assertRaisesRegex(
             MSDParserError,
-            "stray 'n' encountered after 'A' parameter",
+            "stray 'n' encountered after 'C' parameter",
             next,
             parse,
         )
@@ -116,12 +133,13 @@ class TestParseMSD(unittest.TestCase):
         )
 
     def test_stray_semicolon(self):
-        parse = parse_msd(string="#A:B;;#C:D;")
+        parse = parse_msd(string="#A:B;#C:D;;#E:F;")
 
-        self.assertEqual(MSDParameter(("A", "B")), next(parse))
+        parameter = next(parse)
+        self.assertEqual(("A", "B"), parameter.components)
         self.assertRaisesRegex(
             MSDParserError,
-            "stray ';' encountered after 'A' parameter",
+            "stray ';' encountered after 'C' parameter",
             next,
             parse,
         )
@@ -129,16 +147,21 @@ class TestParseMSD(unittest.TestCase):
     def test_stray_text_with_ignore_stray_text(self):
         parse = parse_msd(string="#A:B;n#C:D;", ignore_stray_text=True)
 
-        self.assertEqual(MSDParameter(("A", "B")), next(parse))
-        self.assertEqual(MSDParameter(("C", "D")), next(parse))
+        parameter = next(parse)
+        self.assertEqual(("A", "B"), parameter.components)
+        parameter = next(parse)
+        self.assertEqual(("C", "D"), parameter.components)
         self.assertRaises(StopIteration, next, parse)
 
     def test_escapes(self):
         parse = parse_msd(string="#A\\:B:C\\;D;#E\\#F:G\\\\H;#LF:\\\nLF;")
 
-        self.assertEqual(MSDParameter(("A:B", "C;D")), next(parse))
-        self.assertEqual(MSDParameter(("E#F", "G\\H")), next(parse))
-        self.assertEqual(MSDParameter(("LF", "\nLF")), next(parse))
+        parameter = next(parse)
+        self.assertEqual(("A:B", "C;D"), parameter.components)
+        parameter = next(parse)
+        self.assertEqual(("E#F", "G\\H"), parameter.components)
+        parameter = next(parse)
+        self.assertEqual(("LF", "\nLF"), parameter.components)
         self.assertRaises(StopIteration, next, parse)
 
     def test_no_escapes(self):
@@ -148,7 +171,10 @@ class TestParseMSD(unittest.TestCase):
             ignore_stray_text=True,
         )
 
-        self.assertEqual(MSDParameter(("A\\", "B", "C\\")), next(parse))
-        self.assertEqual(MSDParameter(("E\\#F", "G\\\\H")), next(parse))
-        self.assertEqual(MSDParameter(("LF", "\\\nLF")), next(parse))
+        parameter = next(parse)
+        self.assertEqual(("A\\", "B", "C\\"), parameter.components)
+        parameter = next(parse)
+        self.assertEqual(("E\\#F", "G\\\\H"), parameter.components)
+        parameter = next(parse)
+        self.assertEqual(("LF", "\\\nLF"), parameter.components)
         self.assertRaises(StopIteration, next, parse)

@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from functools import reduce
 from io import StringIO
-from typing import Optional, Sequence, TextIO
+from typing import Mapping, Optional, Sequence, TextIO
 
 
 @dataclass
@@ -18,6 +18,29 @@ class MSDParameter:
 
     components: Sequence[str]
     """The raw MSD components. Any special substrings are unescaped."""
+
+    preamble: Optional[str] = None
+    """
+    Any text before the first parameter, for example, a comment at the top
+    of the file.
+
+    This attribute is always a string (possibly empty) for the first
+    parameter and always None otherwise.
+    """
+
+    comments: Optional[Mapping[int, str]] = None
+    """
+    Mapping of line numbers to comments.
+    
+    Line numbers are relative to the `#` delimiter and start at 0.
+    The comment string includes its `//` delimiter
+    but does not include the trailing newline.
+    """
+
+    suffix: str = ""
+    """
+    Any text after this parameter and before the next parameter (or EOF).
+    """
 
     @property
     def key(self) -> str:
