@@ -34,12 +34,40 @@ class TestParseMSD(unittest.TestCase):
             param.components,
         )
         self.assertRaises(StopIteration, next, parse)
+    
+    def test_preamble(self):
+        parse = parse_msd(string="// Copyright (c) Ash Garcia 2024\n#TITLE:asdf;")
+
+        parameter = next(parse)
+        self.assertEqual(("TITLE", "asdf"), parameter.components)
+        self.assertEqual("// Copyright (c) Ash Garcia 2024\n", parameter.preamble)
+    
+    def test_suffix(self):
+        parse = parse_msd(string="// hi\n#A:B;\n#C:D\n#E:F;// test\n")
+        
+        parameter = next(parse)
+        self.assertEqual(("A", "B"), parameter.components)
+        self.assertEqual("// hi\n", parameter.preamble)
+        self.assertEqual("\n", parameter.suffix)
+        
+        parameter = next(parse)
+        self.assertEqual(("C", "D\n"), parameter.components)
+        self.assertIsNone(parameter.preamble)
+        self.assertEqual("", parameter.suffix)
+
+        parameter = next(parse)
+        self.assertEqual(("E", "F"), parameter.components)
+        self.assertIsNone(parameter.preamble)
+        self.assertEqual("// test\n", parameter.suffix)
+
+        self.assertRaises(StopIteration, next, parse)
 
     def test_comments(self):
         parse = parse_msd(string="#A// comment //\r\nBC:D// ; \nEF;//#NO:PE;")
 
         parameter = next(parse)
         self.assertEqual(("A\r\nBC", "D\nEF"), parameter.components)
+        self.assertEqual({0: "// comment //", 1: "// ; "}, parameter.comments)
         self.assertRaises(StopIteration, next, parse)
 
     def test_comment_with_no_newline_at_eof(self):
@@ -47,6 +75,8 @@ class TestParseMSD(unittest.TestCase):
 
         parameter = next(parse)
         self.assertEqual(("ABC", "DEF"), parameter.components)
+        self.assertEqual({0: "// eof"}, parameter.comments)
+        self.assertEqual("", parameter.suffix)
         self.assertRaises(StopIteration, next, parse)
 
     def test_empty_key(self):

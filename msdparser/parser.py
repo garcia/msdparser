@@ -80,7 +80,6 @@ def parse_msd(
             # TODO: decide how / whether to handle '\r'
             line_inside_parameter += value.count('\n')
         else:
-            suffix.write(text)
             if text and not ignore_stray_text and not text.isspace() and text != "\ufeff":
                 char = text.lstrip()[0]
                 if last_key is None:
@@ -88,6 +87,11 @@ def parse_msd(
                 else:
                     at_location = f"after {repr(last_key)} parameter"
                 raise MSDParserError(f"stray {repr(char)} encountered {at_location}")
+
+            if preamble and len(components) == 0:
+                preamble.write(text)
+            else:
+                suffix.write(text)
 
     def next_component() -> None:
         """Append an empty component string"""
@@ -162,7 +166,7 @@ def parse_msd(
             if inside_parameter:
                 comments[line_inside_parameter] = value
             else:
-                if preamble:
+                if preamble and len(components) == 0:
                     preamble.write(value)
                 else:
                     suffix.write(value)
