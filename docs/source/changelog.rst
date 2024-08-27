@@ -1,9 +1,19 @@
 Changelog
 =========
 
-2.1.0
------
+2.1.0 (rc1)
+-----------
 
+* :class:`.MSDParameter` now has three new attributes:
+  :attr:`~.preamble`, :attr:`~.comments`, and :attr:`~.suffix`.
+  These attributes cover all of the non-semantically-meaningful text
+  that would otherwise be discarded;
+  they can be used to reconstruct the original input.
+* When :func:`parse_msd` encounters stray text between parameters
+  (and `ignore_stray_text` is not set to `False`),
+  the error now takes place on the *preceding* parameter,
+  rather than the next parameter.
+  This is a consequence of the new :attr:`~.suffix` field.
 * Stringifying an :class:`.MSDParameter` with escapes enabled
   will now escape any `#` characters inside a component.
   While this is not required by the inferred spec,
