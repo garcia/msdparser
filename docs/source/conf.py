@@ -68,7 +68,7 @@ html_theme = "sphinx_rtd_theme"
 html_static_path = ["_static"]
 
 autoapi_type = "python"
-autoapi_dirs = ["../../msdparser"]
+autoapi_dirs = ["../../src/msdparser"]
 autoapi_ignore = ["*tests*", "*_private*"]
 autoapi_options = [
     "members",
