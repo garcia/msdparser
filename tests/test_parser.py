@@ -34,31 +34,34 @@ class TestParseMSD(unittest.TestCase):
             param.components,
         )
         self.assertRaises(StopIteration, next, parse)
-    
+
     def test_preamble(self):
         parse = parse_msd(string="// Copyright (c) Ash Garcia 2024\n#TITLE:asdf;")
 
         parameter = next(parse)
         self.assertEqual(("TITLE", "asdf"), parameter.components)
         self.assertEqual("// Copyright (c) Ash Garcia 2024\n", parameter.preamble)
-    
+
     def test_suffix(self):
-        parse = parse_msd(string="// hi\n#A:B;\n#C:D\n#E:F;// test\n")
-        
+        parse = parse_msd(string="// hi\n#A:B;\n#C:D\n#E:F;#G:H;// test\n")
+
         parameter = next(parse)
         self.assertEqual(("A", "B"), parameter.components)
         self.assertEqual("// hi\n", parameter.preamble)
-        self.assertEqual("\n", parameter.suffix)
-        
+        self.assertEqual(";\n", parameter.suffix)
+
         parameter = next(parse)
-        self.assertEqual(("C", "D\n"), parameter.components)
+        self.assertEqual(("C", "D"), parameter.components)
         self.assertIsNone(parameter.preamble)
-        self.assertEqual("", parameter.suffix)
+        self.assertEqual("\n", parameter.suffix)
 
         parameter = next(parse)
         self.assertEqual(("E", "F"), parameter.components)
-        self.assertIsNone(parameter.preamble)
-        self.assertEqual("// test\n", parameter.suffix)
+        self.assertEqual(";", parameter.suffix)
+
+        parameter = next(parse)
+        self.assertEqual(("G", "H"), parameter.components)
+        self.assertEqual(";// test\n", parameter.suffix)
 
         self.assertRaises(StopIteration, next, parse)
 
@@ -108,27 +111,30 @@ class TestParseMSD(unittest.TestCase):
         self.assertRaises(StopIteration, next, parse)
 
     def test_missing_semicolon(self):
-        parse = parse_msd(string="#A:B\nCD;#E:FGH\n#IJKL// comment\n#M:NOP")
+        parse = parse_msd(string="#A:B\nCD;#E:FGH\n#IJKL // comment\n#M:NOP")
 
         parameter = next(parse)
         self.assertEqual(("A", "B\nCD"), parameter.components)
         parameter = next(parse)
-        self.assertEqual(("E", "FGH\n"), parameter.components)
+        self.assertEqual(("E", "FGH"), parameter.components)
         parameter = next(parse)
-        self.assertEqual(("IJKL\n",), parameter.components)
+        self.assertEqual(("IJKL ",), parameter.components)
         parameter = next(parse)
         self.assertEqual(("M", "NOP"), parameter.components)
         self.assertRaises(StopIteration, next, parse)
 
     def test_missing_value_and_semicolon(self):
-        parse = parse_msd(string="#A\n#B\n#C\n")
+        parse = parse_msd(string="#A\n#B\n\n#C")
 
         parameter = next(parse)
-        self.assertEqual(("A\n",), parameter.components)
+        self.assertEqual(("A",), parameter.components)
+        self.assertEqual("\n", parameter.suffix)
         parameter = next(parse)
-        self.assertEqual(("B\n",), parameter.components)
+        self.assertEqual(("B",), parameter.components)
+        self.assertEqual("\n\n", parameter.suffix)
         parameter = next(parse)
-        self.assertEqual(("C\n",), parameter.components)
+        self.assertEqual(("C",), parameter.components)
+        self.assertEqual("", parameter.suffix)
         self.assertRaises(StopIteration, next, parse)
 
     def test_unicode(self):

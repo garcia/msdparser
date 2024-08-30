@@ -61,7 +61,9 @@ class TestLexMSD(unittest.TestCase):
         self.assertEqual((MSDToken.END_PARAMETER, ";"), next(lex))
 
     def test_missing_semicolon(self):
-        lex = lex_msd(string="#A:B\nCD;#E:FGH\n#IJKL// comment\n#M:NOP")
+        lex = lex_msd(
+            string="#A:B\nCD;#E:FGH\n#IJKL// comment \n#M:NOP\n \t#Q:RST\n ! #U:V"
+        )
 
         self.assertEqual((MSDToken.START_PARAMETER, "#"), next(lex))
         self.assertEqual((MSDToken.TEXT, "A"), next(lex))
@@ -71,15 +73,25 @@ class TestLexMSD(unittest.TestCase):
         self.assertEqual((MSDToken.START_PARAMETER, "#"), next(lex))
         self.assertEqual((MSDToken.TEXT, "E"), next(lex))
         self.assertEqual((MSDToken.NEXT_COMPONENT, ":"), next(lex))
-        self.assertEqual((MSDToken.TEXT, "FGH\n"), next(lex))
+        self.assertEqual((MSDToken.TEXT, "FGH"), next(lex))
+        self.assertEqual((MSDToken.END_PARAMETER, "\n"), next(lex))
         self.assertEqual((MSDToken.START_PARAMETER, "#"), next(lex))
         self.assertEqual((MSDToken.TEXT, "IJKL"), next(lex))
-        self.assertEqual((MSDToken.COMMENT, "// comment"), next(lex))
-        self.assertEqual((MSDToken.TEXT, "\n"), next(lex))
+        self.assertEqual((MSDToken.COMMENT, "// comment "), next(lex))
+        self.assertEqual((MSDToken.END_PARAMETER, "\n"), next(lex))
         self.assertEqual((MSDToken.START_PARAMETER, "#"), next(lex))
         self.assertEqual((MSDToken.TEXT, "M"), next(lex))
         self.assertEqual((MSDToken.NEXT_COMPONENT, ":"), next(lex))
         self.assertEqual((MSDToken.TEXT, "NOP"), next(lex))
+        self.assertEqual((MSDToken.END_PARAMETER, "\n \t"), next(lex))
+        self.assertEqual((MSDToken.START_PARAMETER, "#"), next(lex))
+        self.assertEqual((MSDToken.TEXT, "Q"), next(lex))
+        self.assertEqual((MSDToken.NEXT_COMPONENT, ":"), next(lex))
+        self.assertEqual((MSDToken.TEXT, "RST\n ! "), next(lex))
+        self.assertEqual((MSDToken.TEXT, "#"), next(lex))
+        self.assertEqual((MSDToken.TEXT, "U"), next(lex))
+        self.assertEqual((MSDToken.NEXT_COMPONENT, ":"), next(lex))
+        self.assertEqual((MSDToken.TEXT, "V"), next(lex))
 
         self.assertRaises(StopIteration, next, lex)
 

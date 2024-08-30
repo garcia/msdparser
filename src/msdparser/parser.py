@@ -48,7 +48,7 @@ def parse_msd(
             "Must provide exactly one of `file`, `string`, or `tokens` "
             "as a named argument"
         )
-    
+
     # Any text before the first parameter.
     # After the first parameter, this is set to None and never used again.
     preamble: Optional[StringIO] = StringIO()
@@ -74,13 +74,18 @@ def parse_msd(
     def push_text(text: str) -> None:
         """Append to the last component if inside a parameter, or handle stray text"""
         nonlocal components, line_inside_parameter, last_key
-        
+
         if inside_parameter:
             components[-1].write(text)
             # TODO: decide how / whether to handle '\r'
-            line_inside_parameter += value.count('\n')
+            line_inside_parameter += value.count("\n")
         else:
-            if text and not ignore_stray_text and not text.isspace() and text != "\ufeff":
+            if (
+                text
+                and not ignore_stray_text
+                and not text.isspace()
+                and text != "\ufeff"
+            ):
                 char = text.lstrip()[0]
                 if last_key is None:
                     at_location = "at start of document"
@@ -105,23 +110,16 @@ def parse_msd(
         Should be called at the start of the next component (or EOF)
         so that suffix text can be included.
         """
-        nonlocal \
-            preamble, \
-            components, \
-            inside_parameter, \
-            line_inside_parameter, \
-            suffix, \
-            comments, \
-            last_key
+        nonlocal preamble, components, inside_parameter, line_inside_parameter, suffix, comments, last_key
 
         if len(components) == 0:
             return
-        
+
         parameter = MSDParameter(
             components=tuple(component.getvalue() for component in components),
             preamble=preamble and preamble.getvalue(),
             comments=comments.copy(),
-            suffix=suffix.getvalue()
+            suffix=suffix.getvalue(),
         )
 
         if preamble:
@@ -146,6 +144,7 @@ def parse_msd(
             push_text(value)
 
         elif token is MSDToken.START_PARAMETER:
+            assert not inside_parameter
             if len(components) > 0:
                 yield from next_parameter()
             next_component()
@@ -154,6 +153,7 @@ def parse_msd(
             assert inside_parameter
             inside_parameter = False
             last_key = components[0].getvalue()
+            suffix.write(value)
 
         elif token is MSDToken.NEXT_COMPONENT:
             assert inside_parameter

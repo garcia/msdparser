@@ -39,7 +39,11 @@ class MSDParameter:
 
     suffix: str = ""
     """
-    Any text after this parameter and before the next parameter (or EOF).
+    Any text from the end of this parameter (including the `;`)
+    to the start of the next parameter (excluding the `#`) or EOF.
+
+    If we recovered from a missing `;`, this string will contain the
+    line break and surrounding whitespace that precedes the next `#`.
     """
 
     @property

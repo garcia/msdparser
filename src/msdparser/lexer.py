@@ -20,13 +20,17 @@ class MSDToken(enum.Enum):
     NEXT_COMPONENT = enum.auto()
     """A ``:`` inside a parameter separating its components."""
     END_PARAMETER = enum.auto()
-    """A ``;`` indicating the end of a parameter."""
+    """
+    A ``;`` indicating the end of a parameter, or a string containing
+    a line break & any surrounding whitespace if we recovered from a
+    missing semicolon.
+    """
     ESCAPE = enum.auto()
     """A ``\\`` followed by (and including) the escaped character."""
     COMMENT = enum.auto()
     """
     A ``//`` followed by (and including) the comment text. Doesn't include
-    the trailing newline.
+    the terminating newline.
     """
 
 
@@ -96,6 +100,9 @@ LEXER_PATTERNS = [
 ]
 
 
+SPACE_OR_TAB = re.compile(r"[ \t]*")
+
+
 def lex_msd(
     *,
     file: Optional[TextIO] = None,
@@ -118,7 +125,11 @@ def lex_msd(
       and :data:`~MSDToken.END_PARAMETER` tokens all represent
       *semantically meaningful* instances of their corresponding
       metacharacters (``#:;``), never escaped or out-of-context instances.
-    * Concatenating all of the tokenized strings together will produce the
+    * _(New in 3.0)_ Occurrences of :data:`~MSDToken.START_PARAMETER` and
+      :data:`~MSDToken.END_PARAMETER` always perfectly alternate. In the
+      case of a missing semicolon, :data:`~MSDToken.END_PARAMETER` may
+      contain a line break.
+    * Concatenating all of the tokenized strings together produces the
       original input.
 
     Keep in mind that MSD components (particularly values) are often
@@ -141,10 +152,6 @@ def lex_msd(
 
     # Whether we are done reading from the input file or string
     done_reading = False
-
-    # If the last token yielded was text, its value is stored here.
-    # Used for missing semicolon recovery
-    last_text_token = None
 
     # Only the lexer patterns that match the escapes flag
     # Pull out the regex pattern to reduce property accesses in the tight loop
@@ -187,20 +194,32 @@ def lex_msd(
 
                     # Recover from missing ';' at the end of a line
                     if (
-                        pattern.match is LexerMatch.POUND
+                        # If we stopped at a '#' while parsing text inside a parameter,
+                        msd_buffer[:1] == "#"
+                        and inside_parameter
                         and token is MSDToken.TEXT
-                        and last_text_token
-                        and last_text_token[-1] in "\r\n"
+                        # And our text contains a newline (find the last one),
+                        and (
+                            last_nl := max(
+                                matched_text.rfind("\r"), matched_text.rfind("\n")
+                            )
+                        )
+                        != -1
+                        # And everything after that newline is ' ' or '\t'...
+                        and re.fullmatch(SPACE_OR_TAB, matched_text[last_nl + 1 :])
                     ):
-                        token = MSDToken.START_PARAMETER
+                        # Stop the text at the trailing whitespace
+                        matched_text_before_ws = matched_text.rstrip("\r\n\t ")
+                        if matched_text_before_ws:
+                            yield (token, matched_text_before_ws)
+                        # Treat the trailing whitespace as an `END_PARAMETER` token
+                        token = MSDToken.END_PARAMETER
+                        matched_text = matched_text[len(matched_text_before_ws) :]
 
                     if token is MSDToken.START_PARAMETER:
                         inside_parameter = True
                     elif token is MSDToken.END_PARAMETER:
                         inside_parameter = False
-
-                    if token is MSDToken.TEXT:
-                        last_text_token = matched_text
 
                     yield (token, matched_text)
                     break
