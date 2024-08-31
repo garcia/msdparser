@@ -204,12 +204,11 @@ class MSDParameter:
         """
         if exact and self.preamble:
             file.write(self.preamble)
-        last_component = len(self.components) - 1
         file.write("#")
         if exact and self.comments:
             self._serialize_components_with_comments(file, escapes=escapes)
-            file.write(self.suffix)
         else:
+            last_component = len(self.components) - 1
             for c, component in enumerate(self.components):
                 file.write(
                     MSDParameter._serialize_component_without_comments(
@@ -218,6 +217,9 @@ class MSDParameter:
                 )
                 if c != last_component:
                     file.write(":")
+        if exact:
+            file.write(self.suffix)
+        else:
             file.write(";")
 
     def __str__(self) -> str:
