@@ -1,7 +1,20 @@
 from dataclasses import dataclass
 from functools import reduce
 from io import StringIO
+import re
 from typing import Mapping, Optional, Sequence, TextIO
+
+
+__all__ = ["MSDParameter"]
+
+
+def match_next_n_lines(n: int) -> re.Pattern:
+    return re.compile(
+        r"^(?:[^\r\n]*(?:\r?\n)){NNN}[^\r\n]*".replace("NNN", str(n)), re.MULTILINE
+    )
+
+
+UNTIL_NEWLINE = re.compile(r"([^\r\n]*)(\r?\n)", re.MULTILINE)
 
 
 @dataclass
@@ -73,7 +86,9 @@ class MSDParameter:
             return ""
 
     @staticmethod
-    def serialize_component(component: str, *, escapes: bool = True) -> str:
+    def _serialize_component_without_comments(
+        component: str, *, escapes: bool = True, exact: bool = False
+    ) -> str:
         """
         Serialize an MSD component (key or value).
 
@@ -94,7 +109,80 @@ class MSDParameter:
         else:
             return component
 
-    def serialize(self, file: TextIO, *, escapes: bool = True):
+    def _serialize_components_with_comments(
+        self,
+        file: TextIO,
+        *,
+        escapes: bool = True,
+    ):
+        assert self.comments
+
+        last_component = len(self.components) - 1
+        lines_with_comments = sorted(self.comments.keys())
+        line = 0
+
+        for c, component in enumerate(self.components):
+            while component and lines_with_comments:
+                line_with_comment = lines_with_comments[0]
+                assert line <= line_with_comment, f"{line} > {line_with_comment}"
+                if line == line_with_comment:
+                    match = re.match(UNTIL_NEWLINE, component)
+                    if not match:
+                        # No newline in the rest of this component;
+                        # write it and move on to the next component
+                        # TODO escape
+                        file.write(component)
+                        component = ""
+                        break
+                    # Insert comment before the newline
+                    component = component[len(match.group(0)) :]
+                    fragment: str = match.group(1)
+                    newline: str = match.group(2)
+                    # TODO escape
+                    file.write(fragment)
+                    file.write(self.comments[line])
+                    file.write(newline)
+                    lines_with_comments.pop(0)
+                    line += 1
+
+                else:
+                    # Get lines up to the comment
+                    lines_to_skip = line_with_comment - line
+                    assert lines_to_skip >= 1, f"{lines_to_skip} < 1"
+
+                    next_n_lines = match_next_n_lines(lines_to_skip)
+                    match = re.match(next_n_lines, component)
+                    if not match:
+                        # TODO escape
+                        file.write(component)
+                        break
+
+                    assert (
+                        match.group(0).count("\n") == lines_to_skip
+                    ), f"{repr(match.group(0))}.count(chr(10)) != {lines_to_skip}"
+
+                    component = component[len(match.group(0)) :]
+                    file.write(match.group(0))
+                    line += lines_to_skip
+
+            if c != last_component:
+                file.write(":")
+
+        # We should have hit all the lines with comments by the end
+        assert len(lines_with_comments) == 0, lines_with_comments
+
+        # Handle any leftover component
+        if component:
+            # TODO escape
+            file.write(component)
+
+    def serialize(
+        self,
+        file: TextIO,
+        *,
+        escapes: bool = True,
+        exact: bool = False,
+    ):
         """
         Serialize the key/value pair to MSD, including the surrounding
         ``#:;`` characters.
@@ -104,13 +192,23 @@ class MSDParameter:
         interpolate the components unchanged, unless any contain a special
         substring, in which case a ``ValueError`` will be raised instead.
         """
+        if exact and self.preamble:
+            file.write(self.preamble)
         last_component = len(self.components) - 1
         file.write("#")
-        for c, component in enumerate(self.components):
-            file.write(MSDParameter.serialize_component(component, escapes=escapes))
-            if c != last_component:
-                file.write(":")
-        file.write(";")
+        if exact and self.comments:
+            self._serialize_components_with_comments(file, escapes=escapes)
+            file.write(self.suffix)
+        else:
+            for c, component in enumerate(self.components):
+                file.write(
+                    MSDParameter._serialize_component_without_comments(
+                        component, escapes=escapes
+                    )
+                )
+                if c != last_component:
+                    file.write(":")
+            file.write(";")
 
     def __str__(self) -> str:
         return self.stringify()

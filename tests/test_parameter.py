@@ -59,3 +59,81 @@ class TestMSDParameter(unittest.TestCase):
         self.assertEqual("#key:#value;", param.stringify(escapes=False))
         self.assertEqual("#key:\\#value;", param.stringify(escapes=True))
 
+    def test_stringify_with_exact_and_newline_ending(self):
+        param = MSDParameter(
+            ("key", "value \nline two\nline 3\n"),
+            preamble="// Copyright 2024\n\n",
+            comments={0: "// comment"},
+            suffix=";\n",
+        )
+        result = param.stringify(exact=True)
+        self.assertEqual(
+            "// Copyright 2024\n\n#key:value // comment\nline two\nline 3\n;\n",
+            result,
+        )
+
+        self.assertEqual(param, next(parse_msd(string=result)))
+
+    def test_stringify_with_exact_and_comment_ending(self):
+        param = MSDParameter(
+            ("key", "value \nline two\nline 3 \n"),
+            preamble="// Copyright 2024\n\n",
+            comments={0: "// comment", 2: "// another comment"},
+            suffix=";\n",
+        )
+        result = param.stringify(exact=True)
+        self.assertEqual(
+            "// Copyright 2024\n\n#key:value // comment\nline two\nline 3 // another comment\n;\n",
+            result,
+        )
+
+        self.assertEqual(param, next(parse_msd(string=result)))
+
+    def test_stringify_with_exact_and_text_ending(self):
+        param = MSDParameter(
+            ("key", "value \nline two\nline 3"),
+            preamble="// Copyright 2024\n\n",
+            comments={0: "// comment"},
+            suffix=";\n",
+        )
+        result = param.stringify(exact=True)
+        self.assertEqual(
+            "// Copyright 2024\n\n#key:value // comment\nline two\nline 3;\n",
+            result,
+        )
+
+        self.assertEqual(param, next(parse_msd(string=result)))
+
+    def test_stringify_with_exact_and_text_ending_and_middle_comment(
+        self,
+    ):
+        param = MSDParameter(
+            ("key", "value\nline two \nline 3"),
+            preamble="// Copyright 2024\n\n",
+            comments={1: "// comment"},
+            suffix=";\n",
+        )
+        result = param.stringify(exact=True)
+        self.assertEqual(
+            "// Copyright 2024\n\n#key:value\nline two // comment\nline 3;\n",
+            result,
+        )
+
+        self.assertEqual(param, next(parse_msd(string=result)))
+
+    def test_stringify_with_exact_and_text_ending_and_middle_comment_and_windows_newlines(
+        self,
+    ):
+        param = MSDParameter(
+            ("key", "value\r\n, \r\nline 3"),
+            preamble="// Copyright 2024\r\n\r\n",
+            comments={1: "// comment"},
+            suffix=";\r\n",
+        )
+        result = param.stringify(exact=True)
+        self.assertEqual(
+            "// Copyright 2024\r\n\r\n#key:value\r\n, // comment\r\nline 3;\r\n",
+            result,
+        )
+
+        self.assertEqual(param, next(parse_msd(string=result)))
