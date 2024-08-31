@@ -58,18 +58,19 @@ class MSDParameter:
         return self.components[0]
 
     @property
-    def value(self) -> Optional[str]:
+    def value(self) -> str:
         """
         The second MSD component, separated from the key by a ``:``.
 
-        Returns None if the parameter ends after the key with no ``:``.
-        This rarely happens in practice and is typically treated the same
-        as a blank value.
+        If there *is* no second MSD component (i.e. the parameter has no
+        ``:`` separator), returns an empty string *(new in 3.0)*. This
+        rarely happens in practice and is typically treated the same as a
+        blank value anyway.
         """
         try:
             return self.components[1]
         except IndexError:
-            return None
+            return ""
 
     @staticmethod
     def serialize_component(component: str, *, escapes: bool = True) -> str:

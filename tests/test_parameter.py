@@ -16,7 +16,7 @@ class TestMSDParameter(unittest.TestCase):
         param = MSDParameter(("key",))
 
         self.assertEqual("key", param.key)
-        self.assertIsNone(param.value)
+        self.assertEqual("", param.value)
 
     def test_str_with_escapes(self):
         param = MSDParameter(("key", "value"))
