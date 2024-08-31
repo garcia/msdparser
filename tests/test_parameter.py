@@ -137,3 +137,27 @@ class TestMSDParameter(unittest.TestCase):
         )
 
         self.assertEqual(param, next(parse_msd(string=result)))
+
+    def test_stringify_with_exact_and_newline_ending_and_escapes(self):
+        param = MSDParameter(
+            ("key", "value: \nline two;\nline//3\n"),
+            preamble="// Copyright 2024\n\n",
+            comments={0: "// comment //"},
+            suffix=";\n",
+        )
+        result = param.stringify(exact=True)
+        self.assertEqual(
+            "// Copyright 2024\n\n#key:value\\: // comment //\nline two\\;\nline\\//3\n;\n",
+            result,
+        )
+
+        self.assertEqual(param, next(parse_msd(string=result)))
+
+    def test_stringify_with_exact_and_newline_ending_and_escapes_disabled(self):
+        param = MSDParameter(
+            ("key", "value: \nline two;\nline//3\n"),
+            preamble="// Copyright 2024\n\n",
+            comments={0: "// comment //"},
+            suffix=";\n",
+        )
+        self.assertRaises(ValueError, param.stringify, exact=True, escapes=False)

@@ -130,16 +130,22 @@ class MSDParameter:
                     if not match:
                         # No newline in the rest of this component;
                         # write it and move on to the next component
-                        # TODO escape
-                        file.write(component)
+                        file.write(
+                            self._serialize_component_without_comments(
+                                component, escapes=escapes
+                            )
+                        )
                         component = ""
                         break
                     # Insert comment before the newline
                     component = component[len(match.group(0)) :]
                     fragment: str = match.group(1)
                     newline: str = match.group(2)
-                    # TODO escape
-                    file.write(fragment)
+                    file.write(
+                        self._serialize_component_without_comments(
+                            fragment, escapes=escapes
+                        )
+                    )
                     file.write(self.comments[line])
                     file.write(newline)
                     lines_with_comments.pop(0)
@@ -153,13 +159,16 @@ class MSDParameter:
                     next_n_lines = match_next_n_lines(lines_to_skip)
                     match = re.match(next_n_lines, component)
                     if not match:
-                        # TODO escape
-                        file.write(component)
+                        file.write(
+                            self._serialize_component_without_comments(
+                                component, escapes=escapes
+                            )
+                        )
                         break
 
                     assert (
                         match.group(0).count("\n") == lines_to_skip
-                    ), f"{repr(match.group(0))}.count(chr(10)) != {lines_to_skip}"
+                    ), rf'{repr(match.group(0))}.count("\n") != {lines_to_skip}'
 
                     component = component[len(match.group(0)) :]
                     file.write(match.group(0))
@@ -173,8 +182,9 @@ class MSDParameter:
 
         # Handle any leftover component
         if component:
-            # TODO escape
-            file.write(component)
+            file.write(
+                self._serialize_component_without_comments(component, escapes=escapes)
+            )
 
     def serialize(
         self,
