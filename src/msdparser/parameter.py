@@ -32,18 +32,19 @@ class MSDParameter:
     """
     Mapping of line numbers to comments.
     
-    Line numbers are relative to the `#` delimiter and start at 0.
-    The comment string includes its `//` delimiter
+    Line numbers are relative to the ``#`` delimiter and start at 0.
+    The comment string includes its ``//`` delimiter
     but does not include the trailing newline.
     """
 
     suffix: str = ""
     """
-    Any text from the end of this parameter (including the `;`)
-    to the start of the next parameter (excluding the `#`) or EOF.
+    Any text from the end of this parameter (including the ``;``)
+    to the start of the next parameter (excluding the ``#``) or EOF.
+    This will typically be a ``;`` followed by a line break.
 
-    If we recovered from a missing `;`, this string will contain the
-    line break and surrounding whitespace that precedes the next `#`.
+    If we recovered from a missing ``;``, this string will *only* contain
+    whitespace, at least a line break.
     """
 
     @property
