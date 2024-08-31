@@ -147,11 +147,13 @@ class TestParseMSD(unittest.TestCase):
         self.assertEqual(("ARTIST", "楽士"), parameter.components)
         self.assertRaises(StopIteration, next, parse)
 
-    def test_stray_text(self):
-        parse = parse_msd(string="#A:B;#C:D;n#E:F;")
+    def test_stray_text_with_strict_parsing(self):
+        parse = parse_msd(string="#A:B;#C:D;n#E:F;", strict=True)
 
         parameter = next(parse)
         self.assertEqual(("A", "B"), parameter.components)
+        parameter = next(parse)
+        self.assertEqual(("C", "D"), parameter.components)
         self.assertRaisesRegex(
             MSDParserError,
             "stray 'n' encountered after 'C' parameter",
@@ -159,8 +161,22 @@ class TestParseMSD(unittest.TestCase):
             parse,
         )
 
-    def test_stray_text_at_start(self):
-        parse = parse_msd(string="TITLE:oops;")
+    def test_stray_escape_with_strict_parsing(self):
+        parse = parse_msd(string="#A:B;#C:D;\\##E:F;", strict=True)
+
+        parameter = next(parse)
+        self.assertEqual(("A", "B"), parameter.components)
+        parameter = next(parse)
+        self.assertEqual(("C", "D"), parameter.components)
+        self.assertRaisesRegex(
+            MSDParserError,
+            r"stray '\\\\' encountered after 'C' parameter",
+            next,
+            parse,
+        )
+
+    def test_stray_text_at_start_with_strict_parsing(self):
+        parse = parse_msd(string="TITLE:oops;", strict=True)
 
         self.assertRaisesRegex(
             MSDParserError,
@@ -169,11 +185,13 @@ class TestParseMSD(unittest.TestCase):
             parse,
         )
 
-    def test_stray_semicolon(self):
-        parse = parse_msd(string="#A:B;#C:D;;#E:F;")
+    def test_stray_semicolon_with_strict_parsing(self):
+        parse = parse_msd(string="#A:B;#C:D;;#E:F;", strict=True)
 
         parameter = next(parse)
         self.assertEqual(("A", "B"), parameter.components)
+        parameter = next(parse)
+        self.assertEqual(("C", "D"), parameter.components)
         self.assertRaisesRegex(
             MSDParserError,
             "stray ';' encountered after 'C' parameter",
@@ -181,13 +199,15 @@ class TestParseMSD(unittest.TestCase):
             parse,
         )
 
-    def test_stray_text_with_ignore_stray_text(self):
-        parse = parse_msd(string="#A:B;n#C:D;", ignore_stray_text=True)
+    def test_stray_text_without_strict_parsing(self):
+        parse = parse_msd(string="#A:B;n#C:D;")
 
         parameter = next(parse)
         self.assertEqual(("A", "B"), parameter.components)
+        self.assertEqual(";n", parameter.suffix)
         parameter = next(parse)
         self.assertEqual(("C", "D"), parameter.components)
+        self.assertEqual(";", parameter.suffix)
         self.assertRaises(StopIteration, next, parse)
 
     def test_escapes(self):
@@ -205,7 +225,6 @@ class TestParseMSD(unittest.TestCase):
         parse = parse_msd(
             string="#A\\:B:C\\;D;#E\\#F:G\\\\H;#LF:\\\nLF;",
             escapes=False,
-            ignore_stray_text=True,
         )
 
         parameter = next(parse)

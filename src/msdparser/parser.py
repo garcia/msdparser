@@ -23,7 +23,7 @@ def parse_msd(
     string: Optional[str] = None,
     tokens: Optional[Iterable[Tuple[MSDToken, str]]] = None,
     escapes: bool = True,
-    ignore_stray_text: bool = False,
+    strict: bool = False,
 ) -> Iterator[MSDParameter]:
     """
     Parse MSD data into a stream of :class:`.MSDParameter` objects.
@@ -72,7 +72,11 @@ def parse_msd(
     last_key: Optional[str] = None
 
     def push_text(text: str) -> None:
-        """Append to the last component if inside a parameter, or handle stray text"""
+        """
+        Push plain text to the current component, preamble, or suffix.
+
+        Also checks for stray text during strict parsing.
+        """
         nonlocal components, line_inside_parameter, last_key
 
         if inside_parameter:
@@ -80,12 +84,8 @@ def parse_msd(
             # TODO: decide how / whether to handle '\r'
             line_inside_parameter += value.count("\n")
         else:
-            if (
-                text
-                and not ignore_stray_text
-                and not text.isspace()
-                and text != "\ufeff"
-            ):
+            # Check for stray text during strict parsing
+            if text and strict and not text.isspace() and text != "\ufeff":
                 char = text.lstrip()[0]
                 if last_key is None:
                     at_location = "at start of document"
@@ -104,33 +104,32 @@ def parse_msd(
         inside_parameter = True
         components.append(StringIO())
 
-    def next_parameter() -> Iterator[MSDParameter]:
+    def assemble_parameter(reset: bool = False) -> Iterator[MSDParameter]:
         """
-        Form the components into an MSDParameter and reset the state.
-        Should be called at the start of the next component (or EOF)
-        so that suffix text can be included.
+        Yield an MSDParameter from the current parser state.
+
+        If `reset` is True, reset the parser state afterward.
         """
         nonlocal preamble, components, inside_parameter, line_inside_parameter, suffix, comments, last_key
 
         if len(components) == 0:
             return
 
-        parameter = MSDParameter(
+        yield MSDParameter(
             components=tuple(component.getvalue() for component in components),
             preamble=preamble and preamble.getvalue(),
             comments=comments.copy(),
             suffix=suffix.getvalue(),
         )
 
-        if preamble:
-            preamble = None
-        components = []
-        inside_parameter = True
-        line_inside_parameter = 0
-        comments = {}
-        suffix = StringIO()
-
-        yield parameter
+        if reset:
+            if preamble:
+                preamble = None
+            components = []
+            inside_parameter = True
+            line_inside_parameter = 0
+            comments = {}
+            suffix = StringIO()
 
     if tokens is None:
         tokens = lex_msd(
@@ -141,12 +140,17 @@ def parse_msd(
 
     for token, value in tokens:
         if token is MSDToken.TEXT:
-            push_text(value)
+            try:
+                push_text(value)
+            except MSDParserError:
+                if components:
+                    yield from assemble_parameter()
+                raise
 
         elif token is MSDToken.START_PARAMETER:
             assert not inside_parameter
             if len(components) > 0:
-                yield from next_parameter()
+                yield from assemble_parameter(reset=True)
             next_component()
 
         elif token is MSDToken.END_PARAMETER:
@@ -155,12 +159,22 @@ def parse_msd(
             last_key = components[0].getvalue()
             suffix.write(value)
 
+            if value != ";" and strict:
+                raise MSDParserError(
+                    f"Missing semicolon detected after {repr(last_key)} parameter"
+                )
+
         elif token is MSDToken.NEXT_COMPONENT:
             assert inside_parameter
             next_component()
 
         elif token is MSDToken.ESCAPE:
-            push_text(value[1])
+            try:
+                push_text(value[1])
+            except MSDParserError:
+                if components:
+                    yield from assemble_parameter()
+                raise
 
         elif token is MSDToken.COMMENT:
             if inside_parameter:
@@ -174,4 +188,4 @@ def parse_msd(
             assert False, f"unexpected token {token}"
 
     # Remember to output the last parameter
-    yield from next_parameter()
+    yield from assemble_parameter()
