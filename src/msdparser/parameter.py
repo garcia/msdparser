@@ -112,7 +112,10 @@ class MSDParameter:
                 file.write(":")
         file.write(";")
 
-    def __str__(self, *, escapes: bool = True) -> str:
+    def __str__(self) -> str:
+        return self.stringify()
+
+    def stringify(self, *, escapes: bool = True, exact: bool = False):
         output = StringIO()
-        self.serialize(output, escapes=escapes)
+        self.serialize(output, escapes=escapes, exact=exact)
         return output.getvalue()

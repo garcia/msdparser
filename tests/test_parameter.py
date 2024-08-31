@@ -1,6 +1,7 @@
 import unittest
 
 from msdparser.parameter import MSDParameter
+from msdparser.parser import parse_msd
 
 
 class TestMSDParameter(unittest.TestCase):
@@ -18,7 +19,7 @@ class TestMSDParameter(unittest.TestCase):
         self.assertEqual("key", param.key)
         self.assertEqual("", param.value)
 
-    def test_str_with_escapes(self):
+    def test_stringify_with_escapes(self):
         param = MSDParameter(("key", "value"))
         evil_param = MSDParameter(("ABC:DEF;GHI//JKL\\MNO", "abc:def;ghi//jkl\\mno"))
 
@@ -28,7 +29,7 @@ class TestMSDParameter(unittest.TestCase):
             str(evil_param),
         )
 
-    def test_str_without_escapes(self):
+    def test_stringify_without_escapes(self):
         param = MSDParameter(("key", "value"))
         multi_value_param = MSDParameter(("key", "abc", "def"))
         param_with_literal_backslashes = MSDParameter(("ABC\\DEF", "abc\\def"))
@@ -43,16 +44,18 @@ class TestMSDParameter(unittest.TestCase):
             MSDParameter(("ABCDEF", "abc//def")),
         )
 
-        self.assertEqual("#key:value;", param.__str__(escapes=False))
-        self.assertEqual("#key:abc:def;", multi_value_param.__str__(escapes=False))
+        self.assertEqual("#key:value;", param.stringify(escapes=False))
+        self.assertEqual("#key:abc:def;", multi_value_param.stringify(escapes=False))
         self.assertEqual(
-            "#ABC\\DEF:abc\\def;", param_with_literal_backslashes.__str__(escapes=False)
+            "#ABC\\DEF:abc\\def;",
+            param_with_literal_backslashes.stringify(escapes=False),
         )
 
         for invalid_param in invalid_params:
-            self.assertRaises(ValueError, invalid_param.__str__, escapes=False)
+            self.assertRaises(ValueError, invalid_param.stringify, escapes=False)
 
-    def test_str_with_pound(self):
+    def test_stringify_with_literal_pound_sign(self):
         param = MSDParameter(("key", "#value"))
-        self.assertEqual("#key:#value;", param.__str__(escapes=False))
-        self.assertEqual("#key:\\#value;", param.__str__(escapes=True))
+        self.assertEqual("#key:#value;", param.stringify(escapes=False))
+        self.assertEqual("#key:\\#value;", param.stringify(escapes=True))
+
