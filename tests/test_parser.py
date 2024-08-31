@@ -105,9 +105,10 @@ class TestParseMSD(unittest.TestCase):
 
         parameter = next(parse)
         self.assertEqual(("ABC",), parameter.components)
-        self.assertIsNone(parameter.value)
+        self.assertEqual("", parameter.value)
         parameter = next(parse)
         self.assertEqual(("DEF",), parameter.components)
+        self.assertEqual("", parameter.value)
         self.assertRaises(StopIteration, next, parse)
 
     def test_missing_semicolon(self):
