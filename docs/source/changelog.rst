@@ -1,6 +1,18 @@
 Changelog
 =========
 
+3.0.0a2
+-------
+
+Bugfixes
+~~~~~~~~
+
+* Parameters containing comments now handle escapes correctly.
+* Parameters that have components with newlines
+  followed by components with comments
+  no longer serialize comments on the wrong lines.
+* Parameter suffixes are now serialized correctly with ``exact=True``.
+
 3.0.0a1
 -------
 
