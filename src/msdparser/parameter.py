@@ -164,6 +164,7 @@ class MSDParameter:
                                 component, escapes=escapes
                             )
                         )
+                        line += component.count("\n")
                         break
 
                     assert (
