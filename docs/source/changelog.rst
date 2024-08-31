@@ -1,34 +1,97 @@
 Changelog
 =========
 
-2.1.0 (rc1)
+3.0.0 (rc1)
 -----------
 
-* :class:`.MSDParameter` now has three new attributes:
-  :attr:`~.preamble`, :attr:`~.comments`, and :attr:`~.suffix`.
-  These attributes cover all of the non-semantically-meaningful text
-  that would otherwise be discarded;
-  they can be used to reconstruct the original input.
-* When :func:`parse_msd` encounters stray text between parameters
-  (and `ignore_stray_text` is not set to `False`),
-  the error now takes place on the *preceding* parameter,
-  rather than the next parameter.
-  This is a consequence of the new :attr:`~.suffix` field.
-* Stringifying an :class:`.MSDParameter` with escapes enabled
-  will now escape any `#` characters inside a component.
-  While this is not required by the inferred spec,
-  StepMania has difficulties dealing with a `#`
-  as the very first character of a component,
-  and simply escaping it resolves the issue.
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+
+    **msdparser** 3.0 introduces some breaking changes
+    that you may need to update your code to handle:
+
+    **Strict parsing is now opt-in**
+      
+      :func:`.parse_msd`'s `ignore_stray_text` argument has been removed
+      and replaced with a `strict` argument that defaults to `False`.
+      Strict parsing throws an :class:`.MSDParserError`
+      if stray text is encountered *or* a missing semicolon is detected.
+
+      If your code passes :code:`ignore_stray_text=True` to :func:`.parse_msd`,
+      simply remove it to restore the expected behavior.
+      If your code omits `ignore_stray_text` or sets it to `False`,
+      consider adding :code:`strict=True` to restore the old default behavior
+      (along with errors for missing semicolons).
+
+    **Values are now always strings**
+      
+      :attr:`.MSDParameter.value` no longer returns `None`
+      in the edge case where a parameter ends without any ``:`` separator.
+      Now it returns an empty string instead.
+      
+      Your code no longer needs to guard against `None` when accessing the value.
+      If you want to handle the missing ``:`` case,
+      check if the :attr:`~.components` array has a length of 1.
+
+New features
+~~~~~~~~~~~~
+
+:class:`.MSDParameter` has three new attributes:
+:attr:`~.preamble`, :attr:`~.comments`, and :attr:`~.suffix`.
+
+  These attributes cover all of the asemantic text
+  that would otherwise be discarded.
+
+:class:`.MSDParameter` has a new method: :meth:`~.stringify`.
+
+  These are all equivalent::
+
+    str(param)
+    param.__str__()
+    param.stringify()
+  
+  The new :meth:`~.stringify` method
+  takes the same named arguments as :meth:`~.serialize`,
+  including both `escapes` and a new `mirror_input` argument (described below).
+
+:class:`.MSDParameter`'s :meth:`.serialize` and :meth:`.stringify` methods
+now accept an optional, named `mirror_input` argument.
+
+  Passing :code:`mirror_input=True` will reincorporate the asemantic text
+  (:attr:`~.preamble`, :attr:`~.comments`, and :attr:`~.suffix`)
+  into the output, exactly mirroring the input in most cases.
+  (One counterexample is that unnecessary escape sequences won't be preserved).
+
+Bugfixes
+~~~~~~~~
+
+:class:`.MSDParameter`'s :meth:`.serialize` and :meth:`.stringify` methods
+now escape literal ``#`` characters by default.
+This change prevents StepMania from rejecting certain seemingly-valid input,
+such as a song title that begins with ``#``.
+Passing ``escapes=False`` disables this behavior,
+along with all other escaping.
+
+Missing semicolon detection now behaves the same as StepMania.
+Specifically, the new line containing a ``#`` may now have leading whitespace,
+and all whitespace before the ``#`` is trimmed from the preceding parameter.  
+This is implemented in :func:`.lex_msd`
+by emitting the whitespace as an :attr:`~.END_PARAMETER` token.
+:func:`.parse_msd` includes the whitespace
+in the preceding parameter's :attr:`.suffix`.
 
 2.0.0
 -----
 
+Breaking changes
+~~~~~~~~~~~~~~~~
+
 .. warning::
 
-    Per semantic versioning,
-    msdparser version 2 includes one **breaking change**
-    that will require updated client code:
+    **msdparser** 2.0 introduces some breaking changes
+    that you may need to update your code to handle:
     
     * The return type of :func:`.parse_msd` has been changed
       from :code:`Tuple[str, str]` to :class:`.MSDParameter`,
