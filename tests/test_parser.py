@@ -1,3 +1,4 @@
+import codecs
 from io import StringIO
 import unittest
 from msdparser.parameter import MSDParameter
@@ -13,6 +14,29 @@ class TestParseMSD(unittest.TestCase):
         self.assertEqual(next(from_file), next(from_string))
         self.assertRaises(StopIteration, next, from_file)
         self.assertRaises(StopIteration, next, from_string)
+
+    def test_real_file_args(self):
+        testdata = [
+            "tests/testdata/#Fairy_dancing_in_lake.sm",
+            "tests/testdata/backup.sm",
+            "tests/testdata/backup.ssc",
+        ]
+        for testfile in testdata:
+            with self.subTest(testfile=testfile):
+                with codecs.open(testfile, encoding="utf-8") as infile:
+                    string_copy = infile.read()
+                    infile.seek(0)
+                    parameters = list(parse_msd(file=infile))
+
+                joined_parameters = "".join(p.stringify(exact=True) for p in parameters)
+
+                # Literal "#" gets escaped by default
+                # TODO: maybe store components unescaped for true exactness?
+                if testfile == "tests/testdata/#Fairy_dancing_in_lake.sm":
+                    self.assertNotEqual(string_copy, joined_parameters)
+                    joined_parameters = joined_parameters.replace(":\\#", ":#")
+
+                self.assertEqual(string_copy, joined_parameters)
 
     def test_empty(self):
         parse = parse_msd(string="")
