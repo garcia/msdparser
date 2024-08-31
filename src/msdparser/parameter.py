@@ -87,7 +87,7 @@ class MSDParameter:
 
     @staticmethod
     def _serialize_component_without_comments(
-        component: str, *, escapes: bool = True, exact: bool = False
+        component: str, *, escapes: bool = True
     ) -> str:
         """
         Serialize an MSD component (key or value).
