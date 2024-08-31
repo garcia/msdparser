@@ -1,6 +1,6 @@
 # msdparser
 
-A robust & lightning fast MSD parser for Python.
+A comprehensive, pure-Python, speed-optimized MSD parser.
 MSD is the underlying file format
 for the SM and SSC simfile formats used by StepMania,
 as well as a few older formats like DWI.
@@ -9,9 +9,10 @@ Full documentation can be found on **[Read the Docs](https://msdparser.readthedo
 
 ## Features
 
-- Speed-optimized lexer & low-overhead parser
-- Support for escape sequences by default
-- Strict & lenient parse modes
+- MSD lexer and parser
+- Optional escape sequences (on by default)
+- Optional strict parsing (off by default)
+- Bidirectionally-lossless parsing & serialization (in most cases)
 
 ## Installation
 
@@ -59,22 +60,41 @@ typically the key and value:
 #ARTIST:Kommisar;
 ```
 
-Prefer to use `MSDParameter`
-over interpolating the key/value pairs
-between `#:;` characters yourself.
-The `str()` implementation inserts escape sequences where required,
-preventing generation of invalid MSD.
+Parameters can be stringified exactly how they were parsed
+by calling `serialize` or `stringify` with `exact=True`:
+
+```python
+>>> import codecs
+>>> import filecmp
+>>> from msdparser import MSDParameter, parse_msd
+>>> with codecs.open("tests/testdata/backup.ssc", encoding="utf-8") as infile:
+...     params = list(parse_msd(file=infile))
+...
+>>> with codecs.open("output.ssc", "w", encoding="utf-8") as outfile:
+...     for param in params:
+...         param.serialize(outfile, exact=True)
+...
+>>> filecmp.compare("tests/testdata/backup.ssc", "output.ssc")
+True
+```
 
 ## Developing
 
-**msdparser** uses Pipenv for dependency management. Activate the environment:
+**msdparser** uses [rye](https://rye.astral.sh) for package management. Create the virtual environment:
 
-    pipenv shell
+```sh
+rye sync
+```
 
-To run the unit tests:
+Run the unit tests:
 
-    py -m unittest
+```sh
+rye test
+```
 
-To build the documentation:
+Build the documentation:
 
-    docs/make html
+```sh
+./.venv/Scripts/activate
+docs/make html
+```
