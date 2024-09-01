@@ -66,12 +66,12 @@ New features
   
   The new :meth:`~.stringify` method
   takes the same named arguments as :meth:`~.serialize`,
-  including both `escapes` and a new `mirror_input` argument (described below).
+  including both `escapes` and a new `exact` argument (described below).
 
 :class:`.MSDParameter`'s :meth:`.serialize` and :meth:`.stringify` methods
-now accept an optional, named `mirror_input` argument.
+now accept an optional, named `exact` argument.
 
-  Passing :code:`mirror_input=True` will reincorporate the asemantic text
+  Passing :code:`exact=True` will reincorporate the asemantic text
   (:attr:`~.preamble`, :attr:`~.comments`, and :attr:`~.suffix`)
   into the output, exactly mirroring the input in most cases.
   (One counterexample is that unnecessary escape sequences won't be preserved).
