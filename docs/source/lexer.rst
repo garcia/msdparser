@@ -47,7 +47,7 @@ State diagram
 -------------
 
 .. image:: _static/lexer-diagram.png
-  :width: 600
+  :width: 1440
   :alt: Lexer state diagram
 
 Inside of a parameter (between the :code:`#` and :code:`;`),
