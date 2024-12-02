@@ -28,18 +28,18 @@ def parse_msd(
     """
     Parse MSD data into a stream of :class:`.MSDParameter` objects.
 
-    Input is specified using exactly one of these named parameters:
+    Provide input using exactly one of these named parameters:
 
     * `file`:   any file-like object
     * `string`: string containing MSD data
     * `tokens`: iterable of (:class:`.MSDToken`, str) tuples;
       see :func:`.lex_msd` for details
 
+    Set `escapes` to False to treat backslashes as regular text.
     Most modern applications of MSD (like the SM and SSC formats) treat
     backslashes as escape characters, but some older ones (like DWI) don't.
-    Set `escapes` to False to treat backslashes as regular text.
 
-    Raises :class:`MSDParserError` if non-whitespace text is
+    This function raises :class:`MSDParserError` if non-whitespace text is
     encountered between parameters, unless `ignore_stray_text` is True, in
     which case the stray text is simply discarded.
     """
