@@ -17,8 +17,8 @@ classifiers = [
 keywords = ["stepmania", "simfile", "sm", "ssc", "dwi"]
 requires-python = ">= 3.10"
 
-[tool.rye]
-dev-dependencies = [
+[dependency-groups]
+dev = [
     "pytest>=8.3.2",
     "black>=24.8.0",
     "sphinx>=8.0.2",
