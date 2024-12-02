@@ -62,8 +62,15 @@ def parse_msd(
     # Line number inside parameter (starting from the opening `#`)
     line_inside_parameter: int = 0
 
+    # Character index inside parameter (starting from the opening `#`)
+    char_inside_parameter: int = 0
+
     # Mapping of line numbers to comments (there can only be one per line)
     comments: dict[int, str] = {}
+
+    # Indices of escape sequences in the raw parameter
+    # (including preceding escapes & comments)
+    escape_positions: list[int] = []
 
     # Any text after a parameter and before the next parameter
     suffix = StringIO()
@@ -77,10 +84,11 @@ def parse_msd(
 
         Also checks for stray text during strict parsing.
         """
-        nonlocal components, line_inside_parameter, last_key
+        nonlocal components, line_inside_parameter, char_inside_parameter, last_key
 
         if inside_parameter:
             components[-1].write(text)
+            char_inside_parameter += len(text)
             # TODO: decide how / whether to handle '\r'
             line_inside_parameter += value.count("\n")
         else:
@@ -100,9 +108,10 @@ def parse_msd(
 
     def next_component() -> None:
         """Append an empty component string"""
-        nonlocal inside_parameter
+        nonlocal inside_parameter, char_inside_parameter
         inside_parameter = True
         components.append(StringIO())
+        char_inside_parameter += 1
 
     def assemble_parameter(reset: bool = False) -> Iterator[MSDParameter]:
         """
@@ -110,7 +119,9 @@ def parse_msd(
 
         If `reset` is True, reset the parser state afterward.
         """
-        nonlocal preamble, components, inside_parameter, line_inside_parameter, suffix, comments, last_key
+        nonlocal preamble, components, inside_parameter, \
+            line_inside_parameter, char_inside_parameter, suffix, comments, \
+            last_key
 
         if len(components) == 0:
             return
@@ -119,6 +130,7 @@ def parse_msd(
             components=tuple(component.getvalue() for component in components),
             preamble=preamble and preamble.getvalue(),
             comments=comments.copy(),
+            escape_positions=escape_positions.copy() if escapes else None,
             suffix=suffix.getvalue(),
         )
 
@@ -128,6 +140,7 @@ def parse_msd(
             components = []
             inside_parameter = True
             line_inside_parameter = 0
+            char_inside_parameter = 0
             comments = {}
             suffix = StringIO()
 
@@ -170,6 +183,10 @@ def parse_msd(
 
         elif token is MSDToken.ESCAPE:
             try:
+                if inside_parameter:
+                    escape_positions.append(char_inside_parameter)
+                    # Account for the `\` itself
+                    char_inside_parameter += 1
                 push_text(value[1])
             except MSDParserError:
                 if components:
@@ -179,6 +196,7 @@ def parse_msd(
         elif token is MSDToken.COMMENT:
             if inside_parameter:
                 comments[line_inside_parameter] = value
+                char_inside_parameter += len(value)
             else:
                 if preamble and len(components) == 0:
                     preamble.write(value)

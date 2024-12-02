@@ -50,6 +50,16 @@ class MSDParameter:
     but does not include the trailing newline.
     """
 
+    escape_positions: Optional[Sequence[int]] = None
+    """
+    Positions of ``\\`` characters in the raw parameter.
+
+    Positions are relative to the opening ``#``; for example,
+    the escape in ``#TITLE:\#Fairy_dancing_in_lake;`` is at index 7.
+    Since the next character is always treated as literal text,
+    two escapes can never occupy consecutive indices.
+    """
+
     suffix: str = ""
     """
     Any text from the end of this parameter (including the ``;``)
