@@ -1,6 +1,28 @@
 Changelog
 =========
 
+3.0.0a3
+-------
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* :class:`.MSDParameter` is now a frozen dataclass,
+  meaning you cannot write to its fields.
+  The newly-introduced fields for exact serialization
+  reference line numbers & character indexes
+  within the :attr:`~.components` tuple,
+  so it would no longer be safe to update those fields.
+
+New features
+~~~~~~~~~~~~
+
+* Passing `exact=True` to :class:`.MSDParameter`'s
+  :meth:`.serialize` and :meth:`.stringify` methods
+  now preserves the exact positions of escape sequences as well,
+  rather than deriving them from the unescaped parameter contents.
+  This change makes exact serialization truly exact in all scenarios.
+
 3.0.0a2
 -------
 
