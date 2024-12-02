@@ -1,6 +1,6 @@
 [project]
 name = "msdparser"
-version = "3.0.0a2"
+version = "3.0.0a3"
 description = "Low-level parser for StepMania MSD files (SM, SSC, DWI...)"
 authors = [
     { name = "Ash Garcia", email = "github@garcia.sh" }
