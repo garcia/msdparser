@@ -258,3 +258,33 @@ class TestParseMSD(unittest.TestCase):
         parameter = next(parse)
         self.assertEqual(("LF", "\\\nLF"), parameter.components)
         self.assertRaises(StopIteration, next, parse)
+
+    def test_preamble_and_comment_and_escapes(self):
+        parse = parse_msd(
+            string="// Copyright 2024\n\n#key:value\\: // comment //\nline two\\;\nline\\//3\n;\n",
+            escapes=True,
+        )
+
+        parameter = next(parse)
+        self.assertEqual(("key", "value: \nline two;\nline//3\n"), parameter.components)
+        self.assertEqual("// Copyright 2024\n\n", parameter.preamble)
+        self.assertEqual({0: "// comment //"}, parameter.comments)
+        self.assertEqual([10, 35, 42], parameter.escape_positions)
+        self.assertEqual(";\n", parameter.suffix)
+
+        self.assertRaises(StopIteration, next, parse)
+
+    def test_preamble_and_comment_and_escapes_disabled(self):
+        parse = parse_msd(
+            string="// Copyright 2024\n\n#key:value\\: // comment //\nline two\\;\nline\\//3\n;\n",
+            escapes=False,
+        )
+
+        parameter = next(parse)
+        self.assertEqual(("key", "value\\", " \nline two\\"), parameter.components)
+        self.assertEqual("// Copyright 2024\n\n", parameter.preamble)
+        self.assertEqual({0: "// comment //"}, parameter.comments)
+        self.assertIsNone(parameter.escape_positions)
+        self.assertEqual(";\nline\\//3\n;\n", parameter.suffix)
+
+        self.assertRaises(StopIteration, next, parse)
