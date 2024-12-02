@@ -96,7 +96,7 @@ class MSDParameter:
             return ""
 
     @staticmethod
-    def _serialize_component_without_comments(
+    def _serialize_fragment_without_comments(
         component: str, *, escapes: bool = True
     ) -> str:
         """
@@ -119,17 +119,36 @@ class MSDParameter:
         else:
             return component
 
-    def _serialize_components_with_comments(
+    def _serialize_components_exact(
         self,
         file: TextIO,
         *,
         escapes: bool = True,
     ):
-        assert self.comments
+        if not escapes and self.escape_positions:
+            raise ValueError("Can't serialize parameter containing escapes with exact=True and escapes=False")
+        
+        comments = self.comments or {}
+        escape_positions = sorted(self.escape_positions) or []
 
         last_component = len(self.components) - 1
-        lines_with_comments = sorted(self.comments.keys())
+        lines_with_comments = sorted(comments.keys())
         line = 0
+        # Account for the `#` already written
+        position = 1
+
+        def write_and_pop_escapes(fragment):
+            nonlocal position
+
+            while fragment and escape_positions and position + len(fragment) > escape_positions[0]:
+                next_escape = escape_positions[0] - position
+                file.write(fragment[:next_escape])
+                file.write('\\')
+                fragment = fragment[next_escape:]
+                position = escape_positions.pop(0) + 1
+        
+            file.write(fragment)
+            position += len(fragment)
 
         for c, component in enumerate(self.components):
             while component and lines_with_comments:
@@ -140,24 +159,16 @@ class MSDParameter:
                     if not match:
                         # No newline in the rest of this component;
                         # write it and move on to the next component
-                        file.write(
-                            self._serialize_component_without_comments(
-                                component, escapes=escapes
-                            )
-                        )
+                        write_and_pop_escapes(component)
                         component = ""
                         break
                     # Insert comment before the newline
                     component = component[len(match.group(0)) :]
                     fragment: str = match.group(1)
                     newline: str = match.group(2)
-                    file.write(
-                        self._serialize_component_without_comments(
-                            fragment, escapes=escapes
-                        )
-                    )
-                    file.write(self.comments[line])
-                    file.write(newline)
+                    write_and_pop_escapes(fragment)
+                    write_and_pop_escapes(comments[line])
+                    write_and_pop_escapes(newline)
                     lines_with_comments.pop(0)
                     line += 1
 
@@ -169,11 +180,9 @@ class MSDParameter:
                     next_n_lines = match_next_n_lines(lines_to_skip)
                     match = re.match(next_n_lines, component)
                     if not match:
-                        file.write(
-                            self._serialize_component_without_comments(
-                                component, escapes=escapes
-                            )
-                        )
+                        # TODO(before-merge): update `line` from write_and_pop_escapes?
+                        # remove `line += ...` if I do that
+                        write_and_pop_escapes(component)
                         line += component.count("\n")
                         break
 
@@ -182,20 +191,22 @@ class MSDParameter:
                     ), rf'{repr(match.group(0))}.count("\n") != {lines_to_skip}'
 
                     component = component[len(match.group(0)) :]
-                    file.write(match.group(0))
+                    # TODO(before-merge): same as above
+                    write_and_pop_escapes(match.group(0))
                     line += lines_to_skip
 
             if c != last_component:
                 file.write(":")
+                position += 1
 
         # We should have hit all the lines with comments by the end
         assert len(lines_with_comments) == 0, lines_with_comments
 
         # Handle any leftover component
         if component:
-            file.write(
-                self._serialize_component_without_comments(component, escapes=escapes)
-            )
+            write_and_pop_escapes(component)
+        
+        assert not escape_positions, f"Unhandled escapes: {escape_positions}"
 
     def serialize(
         self,
@@ -217,12 +228,12 @@ class MSDParameter:
             file.write(self.preamble)
         file.write("#")
         if exact and self.comments:
-            self._serialize_components_with_comments(file, escapes=escapes)
+            self._serialize_components_exact(file, escapes=escapes)
         else:
             last_component = len(self.components) - 1
             for c, component in enumerate(self.components):
                 file.write(
-                    MSDParameter._serialize_component_without_comments(
+                    MSDParameter._serialize_fragment_without_comments(
                         component, escapes=escapes
                     )
                 )
