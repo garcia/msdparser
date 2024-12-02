@@ -17,7 +17,7 @@ def match_next_n_lines(n: int) -> re.Pattern:
 UNTIL_NEWLINE = re.compile(r"([^\r\n]*)(\r?\n)", re.MULTILINE)
 
 
-@dataclass
+@dataclass(frozen=True)
 class MSDParameter:
     """
     An MSD parameter, comprised of a key and some values (usually one).
