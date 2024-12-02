@@ -80,21 +80,35 @@ True
 
 ## Developing
 
-**msdparser** uses [rye](https://rye.astral.sh) for package management. Create the virtual environment:
+**msdparser** uses [uv](https://docs.astral.sh/uv/) for package management.
+Install it using `pipx install uv` or `pip install uv`,
+or see the [installation docs](https://docs.astral.sh/uv/getting-started/installation/) for more options.
+
+Create the virtual environment for **msdparser**:
 
 ```sh
-rye sync
+uv sync
+```
+
+Activate the virtual environment:
+
+```sh
+# Windows
+.venv\Scripts\activate
+# Linux / Mac
+source .venv/bin/activate
 ```
 
 Run the unit tests:
 
 ```sh
-rye test
+uv run -m unittest
+# Or, if you've activated your virtual environment:
+python -m unittest
 ```
 
 Build the documentation:
 
 ```sh
-./.venv/Scripts/activate
 docs/make html
 ```

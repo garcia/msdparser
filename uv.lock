@@ -1,0 +1,7 @@
+version = 1
+requires-python = ">=3.10"
+
+[[package]]
+name = "msdparser"
+version = "3.0.0a2"
+source = { virtual = "." }
