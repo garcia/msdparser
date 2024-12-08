@@ -186,8 +186,6 @@ class MSDParameter:
                     next_n_lines = match_next_n_lines(lines_to_skip)
                     match = re.match(next_n_lines, component)
                     if not match:
-                        # TODO(before-merge): update `line` from write_and_pop_escapes?
-                        # remove `line += ...` if I do that
                         write_and_pop_escapes(component)
                         line += component.count("\n")
                         break
@@ -197,7 +195,6 @@ class MSDParameter:
                     ), rf'{repr(match.group(0))}.count("\n") != {lines_to_skip}'
 
                     component = component[len(match.group(0)) :]
-                    # TODO(before-merge): same as above
                     write_and_pop_escapes(match.group(0))
                     line += lines_to_skip
 
