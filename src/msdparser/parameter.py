@@ -131,7 +131,7 @@ class MSDParameter:
             )
 
         comments = self.comments or {}
-        escape_positions = sorted(self.escape_positions) or []
+        escape_positions = sorted(self.escape_positions or [])
 
         last_component = len(self.components) - 1
         lines_with_comments = sorted(comments.keys())
