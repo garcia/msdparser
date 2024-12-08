@@ -1,6 +1,13 @@
 Changelog
 =========
 
+3.0.0a4
+-------
+
+Fixed ``TypeError: 'NoneType' object is not iterable`` error
+during exact serialization.
+
+
 3.0.0a3
 -------
 
