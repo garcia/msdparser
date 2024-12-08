@@ -126,8 +126,10 @@ class MSDParameter:
         escapes: bool = True,
     ):
         if not escapes and self.escape_positions:
-            raise ValueError("Can't serialize parameter containing escapes with exact=True and escapes=False")
-        
+            raise ValueError(
+                "Can't serialize parameter containing escapes with exact=True and escapes=False"
+            )
+
         comments = self.comments or {}
         escape_positions = sorted(self.escape_positions) or []
 
@@ -140,13 +142,17 @@ class MSDParameter:
         def write_and_pop_escapes(fragment):
             nonlocal position
 
-            while fragment and escape_positions and position + len(fragment) > escape_positions[0]:
+            while (
+                fragment
+                and escape_positions
+                and position + len(fragment) > escape_positions[0]
+            ):
                 next_escape = escape_positions[0] - position
                 file.write(fragment[:next_escape])
-                file.write('\\')
+                file.write("\\")
                 fragment = fragment[next_escape:]
                 position = escape_positions.pop(0) + 1
-        
+
             file.write(fragment)
             position += len(fragment)
 
@@ -205,7 +211,7 @@ class MSDParameter:
         # Handle any leftover component
         if component:
             write_and_pop_escapes(component)
-        
+
         assert not escape_positions, f"Unhandled escapes: {escape_positions}"
 
     def serialize(

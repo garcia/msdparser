@@ -116,12 +116,8 @@ def parse_msd(
     def assemble_parameter(reset: bool = False) -> Iterator[MSDParameter]:
         """
         Yield an MSDParameter from the current parser state.
-
-        If `reset` is True, reset the parser state afterward.
         """
-        nonlocal preamble, components, inside_parameter, \
-            line_inside_parameter, char_inside_parameter, suffix, comments, \
-            last_key
+        nonlocal preamble, components, inside_parameter, line_inside_parameter, char_inside_parameter, suffix, comments
 
         if len(components) == 0:
             return
@@ -134,15 +130,20 @@ def parse_msd(
             suffix=suffix.getvalue(),
         )
 
-        if reset:
-            if preamble:
-                preamble = None
-            components = []
-            inside_parameter = True
-            line_inside_parameter = 0
-            char_inside_parameter = 0
-            comments = {}
-            suffix = StringIO()
+    def reset_state():
+        """
+        Reset the parser state to prepare it for the next parameter.
+        """
+        nonlocal preamble, components, inside_parameter, line_inside_parameter, char_inside_parameter, suffix, comments
+
+        if preamble:
+            preamble = None
+        components = []
+        inside_parameter = True
+        line_inside_parameter = 0
+        char_inside_parameter = 0
+        comments = {}
+        suffix = StringIO()
 
     if tokens is None:
         tokens = lex_msd(
@@ -163,7 +164,8 @@ def parse_msd(
         elif token is MSDToken.START_PARAMETER:
             assert not inside_parameter
             if len(components) > 0:
-                yield from assemble_parameter(reset=True)
+                yield from assemble_parameter()
+                reset_state()
             next_component()
 
         elif token is MSDToken.END_PARAMETER:
