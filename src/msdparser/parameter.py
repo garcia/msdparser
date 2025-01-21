@@ -188,6 +188,7 @@ class MSDParameter:
                     if not match:
                         write_and_pop_escapes(component)
                         line += component.count("\n")
+                        component = ""
                         break
 
                     assert (
@@ -198,16 +199,16 @@ class MSDParameter:
                     write_and_pop_escapes(match.group(0))
                     line += lines_to_skip
 
+            # Handle any leftover component
+            if component:
+                write_and_pop_escapes(component)
+
             if c != last_component:
                 file.write(":")
                 position += 1
 
         # We should have hit all the lines with comments by the end
         assert len(lines_with_comments) == 0, lines_with_comments
-
-        # Handle any leftover component
-        if component:
-            write_and_pop_escapes(component)
 
         assert not escape_positions, f"Unhandled escapes: {escape_positions}"
 
@@ -230,7 +231,7 @@ class MSDParameter:
         if exact and self.preamble:
             file.write(self.preamble)
         file.write("#")
-        if exact and self.comments:
+        if exact and (self.comments or self.escape_positions):
             self._serialize_components_exact(file, escapes=escapes)
         else:
             last_component = len(self.components) - 1

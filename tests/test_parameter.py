@@ -168,3 +168,19 @@ class TestMSDParameter(unittest.TestCase):
             suffix=";\n",
         )
         self.assertRaises(ValueError, param.stringify, exact=True, escapes=False)
+
+    def test_stringify_with_exact_and_unnecessary_escape(self):
+        param = MSDParameter(
+            ("key", "value"),
+            preamble="",
+            comments=(),
+            escape_positions=(5,),
+            suffix=";\n",
+        )
+        result = param.stringify(exact=True)
+        self.assertEqual(
+            "#key:\\value;\n",
+            result,
+        )
+
+        self.assertEqual(param, next(parse_msd(string=result)))
