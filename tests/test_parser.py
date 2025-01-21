@@ -235,14 +235,17 @@ class TestParseMSD(unittest.TestCase):
         self.assertRaises(StopIteration, next, parse)
 
     def test_escapes(self):
-        parse = parse_msd(string="#A\\:B:C\\;D;#E\\#F:G\\\\H;#LF:\\\nLF;")
+        parse = parse_msd(string="#A\\:B:C\\;D;#EF\\#:G\\\\H;#LF:\\\nLF;")
 
         parameter = next(parse)
         self.assertEqual(("A:B", "C;D"), parameter.components)
+        self.assertEqual((2, 7), parameter.escape_positions)
         parameter = next(parse)
-        self.assertEqual(("E#F", "G\\H"), parameter.components)
+        self.assertEqual(("EF#", "G\\H"), parameter.components)
+        self.assertEqual((3, 7), parameter.escape_positions)
         parameter = next(parse)
         self.assertEqual(("LF", "\nLF"), parameter.components)
+        self.assertEqual((4,), parameter.escape_positions)
         self.assertRaises(StopIteration, next, parse)
 
     def test_no_escapes(self):

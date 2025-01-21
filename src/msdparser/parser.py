@@ -134,7 +134,7 @@ def parse_msd(
         """
         Reset the parser state to prepare it for the next parameter.
         """
-        nonlocal preamble, components, inside_parameter, line_inside_parameter, char_inside_parameter, suffix, comments
+        nonlocal preamble, components, inside_parameter, line_inside_parameter, char_inside_parameter, suffix, comments, escape_positions
 
         if preamble:
             preamble = None
@@ -143,6 +143,7 @@ def parse_msd(
         line_inside_parameter = 0
         char_inside_parameter = 0
         comments = {}
+        escape_positions = []
         suffix = StringIO()
 
     if tokens is None:
