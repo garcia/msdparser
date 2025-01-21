@@ -1,6 +1,26 @@
 Changelog
 =========
 
+3.0.0a5
+-------
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+Escape positions and comments are now stored in tuples instead of dicts or lists,
+ensuring that the :class:`~.MSDParameter` dataclass is truly frozen:
+
+* The type of :attr:`~.MSDParameter.comments` has been changed
+  from ``Optional[Mapping[int, str]]`` to ``Optional[Sequence[tuple[int, str]]]``.
+  When set by :func:`.parse_msd`, the outer sequence is a tuple.
+* When :attr:`~.MSDParameter.escape_positions` is set by :func:`.parse_msd`,
+  it is now a tuple instead of a list.
+
+Bugfixes
+~~~~~~~~
+
+:func:`.parse_msd` now correctly resets :attr:`~.escape_positions` between parameters.
+
 3.0.0a4
 -------
 
