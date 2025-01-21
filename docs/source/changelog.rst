@@ -1,6 +1,14 @@
 Changelog
 =========
 
+3.0.0a6
+-------
+
+Fixed a bug where exact serialization of a parameter
+containing :attr:`~.escape_positions` but no :attr:`~.comments`
+would incorrectly infer escape positions,
+instead of using those in the original parameter.
+
 3.0.0a5
 -------
 
