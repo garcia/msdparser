@@ -125,8 +125,8 @@ def parse_msd(
         yield MSDParameter(
             components=tuple(component.getvalue() for component in components),
             preamble=preamble and preamble.getvalue(),
-            comments=comments.copy(),
-            escape_positions=escape_positions.copy() if escapes else None,
+            comments=tuple(comments.items()),
+            escape_positions=tuple(escape_positions) if escapes else None,
             suffix=suffix.getvalue(),
         )
 

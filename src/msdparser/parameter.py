@@ -41,7 +41,7 @@ class MSDParameter:
     parameter and always None otherwise.
     """
 
-    comments: Optional[Mapping[int, str]] = None
+    comments: Optional[Sequence[tuple[int, str]]] = None
     """
     Mapping of line numbers to comments.
     
@@ -55,7 +55,7 @@ class MSDParameter:
     Positions of ``\\`` characters in the raw parameter.
 
     Positions are relative to the opening ``#``; for example,
-    the escape in ``#TITLE:\#Fairy_dancing_in_lake;`` is at index 7.
+    the escape in ``#TITLE:\\#Fairy_dancing_in_lake;`` is at index 7.
     Since the next character is always treated as literal text,
     two escapes can never occupy consecutive indices.
     """
@@ -130,7 +130,7 @@ class MSDParameter:
                 "Can't serialize parameter containing escapes with exact=True and escapes=False"
             )
 
-        comments = self.comments or {}
+        comments: dict[int, str] = {ln: c for ln, c in self.comments or ()}
         escape_positions = sorted(self.escape_positions or [])
 
         last_component = len(self.components) - 1

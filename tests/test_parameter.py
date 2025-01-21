@@ -63,8 +63,8 @@ class TestMSDParameter(unittest.TestCase):
         param = MSDParameter(
             ("key", "value \nline two\nline 3\n"),
             preamble="// Copyright 2024\n\n",
-            comments={0: "// comment"},
-            escape_positions=[],
+            comments=((0, "// comment"),),
+            escape_positions=(),
             suffix=";\n",
         )
         result = param.stringify(exact=True)
@@ -79,8 +79,8 @@ class TestMSDParameter(unittest.TestCase):
         param = MSDParameter(
             ("key", "value \nline two\nline 3 \n"),
             preamble="// Copyright 2024\n\n",
-            comments={0: "// comment", 2: "// another comment"},
-            escape_positions=[],
+            comments=((0, "// comment"), (2, "// another comment")),
+            escape_positions=(),
             suffix=";\n",
         )
         result = param.stringify(exact=True)
@@ -95,8 +95,8 @@ class TestMSDParameter(unittest.TestCase):
         param = MSDParameter(
             ("key", "value \nline two\nline 3"),
             preamble="// Copyright 2024\n\n",
-            comments={0: "// comment"},
-            escape_positions=[],
+            comments=((0, "// comment"),),
+            escape_positions=(),
             suffix=";\n",
         )
         result = param.stringify(exact=True)
@@ -113,8 +113,8 @@ class TestMSDParameter(unittest.TestCase):
         param = MSDParameter(
             ("key", "value\nline two \nline 3"),
             preamble="// Copyright 2024\n\n",
-            comments={1: "// comment"},
-            escape_positions=[],
+            comments=((1, "// comment"),),
+            escape_positions=(),
             suffix=";\n",
         )
         result = param.stringify(exact=True)
@@ -131,8 +131,8 @@ class TestMSDParameter(unittest.TestCase):
         param = MSDParameter(
             ("key", "value\r\n, \r\nline 3"),
             preamble="// Copyright 2024\r\n\r\n",
-            comments={1: "// comment"},
-            escape_positions=[],
+            comments=((1, "// comment"),),
+            escape_positions=(),
             suffix=";\r\n",
         )
         result = param.stringify(exact=True)
@@ -147,8 +147,8 @@ class TestMSDParameter(unittest.TestCase):
         param = MSDParameter(
             ("key", "value: \nline two;\nline//3\n"),
             preamble="// Copyright 2024\n\n",
-            comments={0: "// comment //"},
-            escape_positions=[10, 35, 42],
+            comments=((0, "// comment //"),),
+            escape_positions=(10, 35, 42),
             suffix=";\n",
         )
         result = param.stringify(exact=True)
@@ -163,8 +163,8 @@ class TestMSDParameter(unittest.TestCase):
         param = MSDParameter(
             ("key", "value: \nline two;\nline//3\n"),
             preamble="// Copyright 2024\n\n",
-            comments={0: "// comment //"},
-            escape_positions=[10, 35, 42],
+            comments=((0, "// comment //"),),
+            escape_positions=(10, 35, 42),
             suffix=";\n",
         )
         self.assertRaises(ValueError, param.stringify, exact=True, escapes=False)

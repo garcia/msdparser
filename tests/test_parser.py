@@ -94,7 +94,7 @@ class TestParseMSD(unittest.TestCase):
 
         parameter = next(parse)
         self.assertEqual(("A\r\nBC", "D\nEF"), parameter.components)
-        self.assertEqual({0: "// comment //", 1: "// ; "}, parameter.comments)
+        self.assertEqual(((0, "// comment //"), (1, "// ; ")), parameter.comments)
         self.assertRaises(StopIteration, next, parse)
 
     def test_comment_with_no_newline_at_eof(self):
@@ -102,7 +102,7 @@ class TestParseMSD(unittest.TestCase):
 
         parameter = next(parse)
         self.assertEqual(("ABC", "DEF"), parameter.components)
-        self.assertEqual({0: "// eof"}, parameter.comments)
+        self.assertEqual(((0, "// eof"),), parameter.comments)
         self.assertEqual("", parameter.suffix)
         self.assertRaises(StopIteration, next, parse)
 
@@ -268,8 +268,8 @@ class TestParseMSD(unittest.TestCase):
         parameter = next(parse)
         self.assertEqual(("key", "value: \nline two;\nline//3\n"), parameter.components)
         self.assertEqual("// Copyright 2024\n\n", parameter.preamble)
-        self.assertEqual({0: "// comment //"}, parameter.comments)
-        self.assertEqual([10, 35, 42], parameter.escape_positions)
+        self.assertEqual(((0, "// comment //"),), parameter.comments)
+        self.assertEqual((10, 35, 42), parameter.escape_positions)
         self.assertEqual(";\n", parameter.suffix)
 
         self.assertRaises(StopIteration, next, parse)
@@ -283,7 +283,7 @@ class TestParseMSD(unittest.TestCase):
         parameter = next(parse)
         self.assertEqual(("key", "value\\", " \nline two\\"), parameter.components)
         self.assertEqual("// Copyright 2024\n\n", parameter.preamble)
-        self.assertEqual({0: "// comment //"}, parameter.comments)
+        self.assertEqual(((0, "// comment //"),), parameter.comments)
         self.assertIsNone(parameter.escape_positions)
         self.assertEqual(";\nline\\//3\n;\n", parameter.suffix)
 
